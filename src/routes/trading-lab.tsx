@@ -1,138 +1,56 @@
 import { useMemo, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
-import { Activity, ChevronLeft, ChevronRight, RotateCcw, ShieldCheck, Target, TrendingDown, TrendingUp } from "lucide-react";
+import { BarChart3, ChevronDown, Crosshair, Grid3X3, Menu, RotateCcw, Settings2, ShieldCheck, TrendingDown, TrendingUp, ZoomIn, ZoomOut } from "lucide-react";
 import { SiteLayout } from "@/components/site-layout";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
 export const Route = createFileRoute("/trading-lab")({
-  head: () => ({
-    meta: [
-      { title: "Trading Lab — Trading Academy CZ" },
-      { name: "description", content: "Praktický simulátor pro procvičení práce s grafem, příkazy, SL, TP a řízením pozice." },
-    ],
-  }),
+  head: () => ({ meta: [{ title: "Trading Lab — Trading Academy CZ" }, { name: "description", content: "MT5-style demo terminál pro bezpečný nácvik tradingu." }] }),
   component: TradingLab,
 });
 
-type Candle = { o: number; h: number; l: number; c: number };
-type Position = { id: number; side: "BUY" | "SELL"; volume: number; entry: number; sl: number; tp: number };
+type Candle={o:number;h:number;l:number;c:number};
+type Position={id:number;side:"BUY"|"SELL";volume:number;entry:number;sl:number;tp:number};
+type Asset={symbol:string;digits:number;seed:number;point:number;name:string};
 
-const assets = [
-  { symbol: "EURUSD", name: "Euro / US Dollar", digits: 5, seed: 1.1042, pip: 0.0001 },
-  { symbol: "XAUUSD", name: "Gold / US Dollar", digits: 2, seed: 3645.2, pip: 1 },
-  { symbol: "BTCUSD", name: "Bitcoin / US Dollar", digits: 2, seed: 112450, pip: 1 },
+const assets:Asset[]=[
+ {symbol:"EURUSD",name:"Euro vs US Dollar",digits:5,seed:1.16542,point:.00001},
+ {symbol:"GBPUSD",name:"British Pound vs US Dollar",digits:5,seed:1.34618,point:.00001},
+ {symbol:"USDJPY",name:"US Dollar vs Japanese Yen",digits:3,seed:147.284,point:.001},
+ {symbol:"XAUUSD",name:"Gold vs US Dollar",digits:2,seed:3645.20,point:.01},
+ {symbol:"BTCUSD",name:"Bitcoin vs US Dollar",digits:2,seed:112450.32,point:.01},
+ {symbol:"US500",name:"US 500",digits:2,seed:6512.4,point:.01},
 ];
+const tfs=["M1","M2","M3","M4","M5","M6","M10","M12","M15","M20","M30","H1","H2","H3","H4","H6","H8","H12","D1","W1","MN"];
+function candles(seed:number){let p=seed;const a:Candle[]=[];for(let i=0;i<160;i++){const wave=(Math.sin(i*.34)*.7+Math.cos(i*.13)*.32+Math.sin(i*1.51)*.12)*seed*.00105;const body=seed*(.00025+Math.abs(Math.sin(i*1.2))*.00016);const o=p,c=p+wave,h=Math.max(o,c)+body,l=Math.min(o,c)-body*.8;a.push({o,h,l,c});p=c;}return a}
+function f(v:number,d:number){return v.toLocaleString("en-US",{minimumFractionDigits:d,maximumFractionDigits:d})}
+function pnlText(v:number){return `${v>=0?"+":"-"}$${Math.abs(v).toFixed(2)}`}
 
-function makeCandles(seed: number): Candle[] {
-  const out: Candle[] = [];
-  let p = seed;
-  for (let i = 0; i < 36; i++) {
-    const wave = Math.sin(i * 0.72) * seed * 0.0012 + Math.cos(i * 0.28) * seed * 0.0007;
-    const body = seed * 0.0005 + Math.abs(Math.sin(i * 1.7)) * seed * 0.00035;
-    const o = p;
-    const c = p + wave;
-    const h = Math.max(o, c) + body * 0.9;
-    const l = Math.min(o, c) - body * 0.8;
-    out.push({ o, h, l, c });
-    p = c;
-  }
-  return out;
+function TradingLab(){
+ const [ai,setAi]=useState(0); const asset=assets[ai]; const [tf,setTf]=useState("M15"); const [data]=useState(()=>candles(asset.seed));
+ const [visible,setVisible]=useState(60); const [balance,setBalance]=useState(10000); const [volume,setVolume]=useState(.10); const [slPts,setSlPts]=useState(250); const [tpPts,setTpPts]=useState(500); const [positions,setPositions]=useState<Position[]>([]); const [bottom,setBottom]=useState("Trade"); const [left,setLeft]=useState("Market Watch"); const [grid,setGrid]=useState(true); const [cross,setCross]=useState(false);
+ const shown=data.slice(0,visible), current=shown.at(-1)?.c??asset.seed; const prev=shown.at(-2)?.c??current; const delta=current-prev;
+ const calc=(p:Position)=>{const d=p.side==="BUY"?current-p.entry:p.entry-current;const pv=["XAUUSD","BTCUSD","US500"].includes(asset.symbol)?.1:1;return d/asset.point*p.volume*.01*pv};
+ const floatPnl=useMemo(()=>positions.reduce((s,p)=>s+calc(p),0),[positions,current,asset]); const equity=balance+floatPnl; const margin=positions.reduce((s,p)=>s+p.volume*100,0);
+ const hi=Math.max(...shown.map(c=>c.h)),lo=Math.min(...shown.map(c=>c.l)),range=Math.max(hi-lo,asset.point),W=1100,H=500,L=20,R=88,T=18,B=30,step=(W-L-R)/shown.length,y=(v:number)=>T+(1-(v-lo)/range)*(H-T-B);
+ const open=(side:"BUY"|"SELL")=>{const sl=side==="BUY"?current-slPts*asset.point:current+slPts*asset.point;const tp=side==="BUY"?current+tpPts*asset.point:current-tpPts*asset.point;setPositions(p=>[...p,{id:Date.now(),side,volume,entry:current,sl,tp}]);};
+ const close=(id:number)=>{const p=positions.find(x=>x.id===id);if(!p)return;setBalance(b=>b+calc(p));setPositions(xs=>xs.filter(x=>x.id!==id));};
+ const select=(i:number)=>{setAi(i);setVisible(60);setBalance(10000);setPositions([]);};
+ return <SiteLayout><div className="bg-[#101216] text-[#d9dce4]"><div className="mx-auto max-w-[1600px] p-2 sm:p-3"><div className="overflow-hidden border border-white/10 bg-[#17191f] shadow-2xl">
+  <div className="flex h-9 items-center justify-between border-b border-white/10 bg-[#20232a] px-3 text-xs"><div className="flex items-center gap-2"><BarChart3 className="size-4 text-yellow-300"/><b>Trading Academy — Demo Terminal</b><Badge className="bg-emerald-500/15 text-emerald-300">DEMO</Badge></div><span className="text-emerald-300">● Connected</span></div>
+  <div className="flex flex-wrap items-center gap-1 border-b border-white/10 bg-[#1c1f25] px-2 py-1 text-[11px]">{["File","View","Insert","Charts","Tools","Window","Help"].map(x=><button key={x} className="rounded px-2 py-1 hover:bg-white/10">{x}</button>)}<span className="mx-1 h-4 w-px bg-white/10"/>{["New Order","Crosshair","Indicators","AutoTrading"].map(x=><button key={x} className="rounded px-2 py-1 hover:bg-white/10">{x}</button>)}<button className="ml-auto rounded p-1.5 hover:bg-white/10"><Settings2 className="size-3.5"/></button></div>
+  <div className="grid grid-cols-[230px_1fr]">
+   <aside className="hidden border-r border-white/10 bg-[#17191e] md:block"><div className="grid grid-cols-2 border-b border-white/10 bg-[#20232a] text-[11px]">{["Market Watch","Navigator"].map(x=><button key={x} onClick={()=>setLeft(x)} className={`px-3 py-2 ${left===x?"bg-[#292d36] text-white":"text-slate-500"}`}>{x}</button>)}</div>{left==="Market Watch"?<><div className="flex justify-between px-3 py-2 text-[10px] uppercase tracking-wider text-slate-500"><span>Symbols</span><span>Bid / Ask</span></div>{assets.map((a,i)=>{const p=candles(a.seed)[59].c;const ask=p+a.point*4;return <button key={a.symbol} onClick={()=>select(i)} className={`grid w-full grid-cols-[1fr_76px_76px] px-3 py-2 text-left text-xs hover:bg-white/5 ${i===ai?"bg-[#292d36]":""}`}><b>{a.symbol}</b><span>{f(p,a.digits)}</span><span>{f(ask,a.digits)}</span></button>})}</>:<div className="p-3 text-xs text-slate-400 space-y-2">{["Accounts","Indicators","Expert Advisors","Scripts"].map(x=><div key={x}>▸ {x}</div>)}</div>}</aside>
+   <main className="min-w-0">
+    <div className="flex flex-wrap items-center gap-1 border-b border-white/10 bg-[#1a1d23] px-2 py-1"> <button className="flex items-center gap-2 rounded bg-[#2a2e37] px-3 py-1.5 text-xs font-semibold">{asset.symbol}<ChevronDown className="size-3"/></button>{tfs.map(x=><button key={x} onClick={()=>setTf(x)} className={`rounded px-2 py-1.5 text-[10px] ${tf===x?"bg-yellow-300 text-black font-semibold":"text-slate-500 hover:bg-white/10"}`}>{x}</button>)}<div className="ml-auto flex gap-1"><button onClick={()=>setGrid(v=>!v)} className="rounded p-1.5 hover:bg-white/10"><Grid3X3 className="size-3.5"/></button><button onClick={()=>setCross(v=>!v)} className="rounded p-1.5 hover:bg-white/10"><Crosshair className="size-3.5"/></button><button className="rounded p-1.5 hover:bg-white/10"><ZoomOut className="size-3.5"/></button><button className="rounded p-1.5 hover:bg-white/10"><ZoomIn className="size-3.5"/></button></div></div>
+    <div className="relative overflow-hidden bg-[#0e1015]"><div className="absolute left-3 top-2 z-10 text-[10px] text-slate-500">{asset.symbol},{tf}  ·  {asset.name}</div><svg viewBox={`0 0 ${W} ${H}`} className="h-[500px] w-full">{grid&&[0,.2,.4,.6,.8,1].map(t=><line key={t} x1={L} x2={W-R} y1={T+t*(H-T-B)} y2={T+t*(H-T-B)} stroke="currentColor" opacity=".09"/>)}{shown.map((c,i)=>{const x=L+i*step+step/2,up=c.c>=c.o,top=Math.min(y(c.o),y(c.c)),body=Math.max(2,Math.abs(y(c.c)-y(c.o)));return <g key={i} className={up?"text-emerald-400":"text-red-400"}><line x1={x} x2={x} y1={y(c.h)} y2={y(c.l)} stroke="currentColor"/><rect x={x-step*.3} y={top} width={Math.max(2,step*.6)} height={body} fill="currentColor"/></g>})}<line x1={L} x2={W-R} y1={y(current)} y2={y(current)} stroke="#eab308" strokeDasharray="4 3"/>{[0,.25,.5,.75,1].map(t=><text key={t} x={W-R+8} y={T+t*(H-T-B)+4} fontSize="10" fill="#6f7582">{f(hi-t*range,asset.digits)}</text>)}{cross&&<><line x1={L+(W-L-R)/2} x2={L+(W-L-R)/2} y1={T} y2={H-B} stroke="#fff" opacity=".25"/><line x1={L} x2={W-R} y1={H/2} y2={H/2} stroke="#fff" opacity=".25"/></>}</svg></div>
+    <div className="grid grid-cols-2 border-y border-white/10 bg-[#171a20] sm:grid-cols-6">{[["Balance",`$${balance.toFixed(2)}`],["Equity",`$${equity.toFixed(2)}`],["Margin",`$${margin.toFixed(2)}`],["Free Margin",`$${Math.max(0,equity-margin).toFixed(2)}`],["P/L",pnlText(floatPnl)],["Positions",String(positions.length)]].map(([k,v])=><div key={k} className="border-r border-white/5 px-3 py-2"><div className="text-[9px] uppercase tracking-widest text-slate-500">{k}</div><div className={`mt-1 text-xs font-semibold ${k==="P/L"?(floatPnl>=0?"text-emerald-300":"text-red-300"):"text-slate-200"}`}>{v}</div></div>)}</div>
+    <div className="grid gap-2 border-b border-white/10 bg-[#1b1e24] p-2 md:grid-cols-[1fr_340px]"><div className="grid grid-cols-2 gap-2"><Button onClick={()=>open("SELL")} className="h-11 bg-red-500/15 text-red-300 hover:bg-red-500/25"><TrendingDown className="size-4"/> SELL <span className="ml-auto text-[10px]">{f(current,asset.digits)}</span></Button><Button onClick={()=>open("BUY")} className="h-11 bg-emerald-500/15 text-emerald-300 hover:bg-emerald-500/25"><TrendingUp className="size-4"/> BUY <span className="ml-auto text-[10px]">{f(current,asset.digits)}</span></Button></div><div className="grid grid-cols-3 gap-2"><label className="text-[10px] text-slate-500">Volume<Input type="number" step="0.01" min="0.01" value={volume} onChange={e=>setVolume(Math.max(.01,Number(e.target.value)||.01))} className="mt-1 h-8 bg-black/20 text-xs"/></label><label className="text-[10px] text-slate-500">SL points<Input type="number" step="10" min="0" value={slPts} onChange={e=>setSlPts(Math.max(0,Number(e.target.value)||0))} className="mt-1 h-8 bg-black/20 text-xs"/></label><label className="text-[10px] text-slate-500">TP points<Input type="number" step="10" min="0" value={tpPts} onChange={e=>setTpPts(Math.max(0,Number(e.target.value)||0))} className="mt-1 h-8 bg-black/20 text-xs"/></label></div></div>
+    <div className="bg-[#15171c]"><div className="flex overflow-x-auto border-b border-white/10">{["Trade","Exposure","History","News","Mailbox","Alerts","Experts","Journal"].map(x=><button key={x} onClick={()=>setBottom(x)} className={`px-4 py-2 text-[11px] ${bottom===x?"border-b-2 border-yellow-300 bg-[#252832] text-white":"text-slate-500"}`}>{x}</button>)}</div>{bottom==="Trade"?<div className="max-h-56 overflow-auto"><table className="w-full min-w-[820px] text-[11px]"><thead className="bg-[#1c1f26] text-left text-slate-500"><tr><th className="px-3 py-2">Symbol</th><th>Type</th><th>Volume</th><th>Price</th><th>S/L</th><th>T/P</th><th>Profit</th><th/></tr></thead><tbody>{positions.length===0?<tr><td colSpan={8} className="px-3 py-5 text-slate-600">No open positions</td></tr>:positions.map(p=><tr key={p.id} className="border-t border-white/5"><td className="px-3 py-2 font-semibold">{asset.symbol}</td><td className={p.side==="BUY"?"text-emerald-300":"text-red-300"}>{p.side}</td><td>{p.volume.toFixed(2)}</td><td>{f(p.entry,asset.digits)}</td><td>{f(p.sl,asset.digits)}</td><td>{f(p.tp,asset.digits)}</td><td className={calc(p)>=0?"text-emerald-300":"text-red-300"}>{pnlText(calc(p))}</td><td><Button size="sm" variant="ghost" onClick={()=>close(p.id)} className="h-6 text-[10px]">Close</Button></td></tr>)}</tbody></table></div>:<div className="p-4 text-xs text-slate-500">{bottom} panel — training terminal data.</div>}</div>
+    <div className="flex items-center justify-between border-t border-white/10 bg-[#1b1d23] px-3 py-2 text-[10px] text-slate-500"><span>{delta>=0?"Price up":"Price down"} · Spread 4 pts · Demo data</span><Button size="sm" variant="ghost" onClick={()=>{setPositions([]);setBalance(10000);setVisible(60)}} className="h-7 text-[10px]"><RotateCcw className="size-3"/> Reset</Button></div>
+   </main>
+  </div>
+ </div><div className="mt-3 rounded border border-yellow-500/20 bg-yellow-500/5 px-3 py-2 text-[11px] text-slate-400"><ShieldCheck className="mr-2 inline size-3.5 text-yellow-300"/>Demo simulátor: žádný skutečný broker ani reálné peníze.</div></div></div></SiteLayout>;
 }
-
-function money(v: number) { return `${v >= 0 ? "+" : ""}${v.toFixed(2)} USD`; }
-function price(v: number, d: number) { return v.toLocaleString("cs-CZ", { minimumFractionDigits: d, maximumFractionDigits: d }); }
-
-function TradingLab() {
-  const [assetIndex, setAssetIndex] = useState(0);
-  const asset = assets[assetIndex];
-  const [candles, setCandles] = useState(() => makeCandles(asset.seed));
-  const [visible, setVisible] = useState(20);
-  const [balance, setBalance] = useState(10000);
-  const [volume, setVolume] = useState(0.1);
-  const [sl, setSl] = useState(25);
-  const [tp, setTp] = useState(50);
-  const [positions, setPositions] = useState<Position[]>([]);
-  const [task, setTask] = useState(0);
-  const [note, setNote] = useState("Začni výběrem instrumentu a otevři první demo pozici.");
-
-  const last = candles[visible - 1] ?? candles[candles.length - 1];
-  const currentPrice = last.c;
-  const pnl = useMemo(() => positions.reduce((sum, p) => {
-    const delta = p.side === "BUY" ? currentPrice - p.entry : p.entry - currentPrice;
-    return sum + delta / asset.pip * p.volume * (asset.symbol === "EURUSD" ? 1 : 0.1);
-  }, 0), [positions, currentPrice, asset]);
-  const equity = balance + pnl;
-
-  function selectAsset(i: number) {
-    setAssetIndex(i); setCandles(makeCandles(assets[i].seed)); setVisible(20); setPositions([]); setBalance(10000); setTask(0); setNote("Nový trénink. Otevři první demo pozici.");
-  }
-
-  function open(side: "BUY" | "SELL") {
-    const slPrice = side === "BUY" ? currentPrice - sl * asset.pip : currentPrice + sl * asset.pip;
-    const tpPrice = side === "BUY" ? currentPrice + tp * asset.pip : currentPrice - tp * asset.pip;
-    setPositions((p) => [...p, { id: Date.now(), side, volume, entry: currentPrice, sl: slPrice, tp: tpPrice }]);
-    setTask((t) => Math.max(t, 1));
-    setNote(`${side} otevřen. Nyní sleduj řízení rizika a pokračuj v replay.`);
-  }
-
-  function replay(n: number) {
-    setVisible((v) => {
-      const next = Math.min(candles.length, v + n);
-      if (next >= 23) setTask((t) => Math.max(t, 3));
-      setNote(next >= 23 ? "Replay splněn. Zavři pozici a vyhodnoť P/L." : `Trh posunut o ${n} svíčku.`);
-      return next;
-    });
-  }
-
-  function close(id: number) {
-    const p = positions.find((x) => x.id === id);
-    if (!p) return;
-    const delta = p.side === "BUY" ? currentPrice - p.entry : p.entry - currentPrice;
-    const result = delta / asset.pip * p.volume * (asset.symbol === "EURUSD" ? 1 : 0.1);
-    setBalance((b) => b + result);
-    setPositions((items) => items.filter((x) => x.id !== id));
-    setTask((t) => Math.max(t, 4));
-    setNote(`Pozice uzavřena. Výsledek ${money(result)}.`);
-  }
-
-  function reset() { selectAsset(assetIndex); }
-
-  const chartW = 820, chartH = 340, pad = 28;
-  const shown = candles.slice(0, visible);
-  const hi = Math.max(...shown.map((c) => c.h)), lo = Math.min(...shown.map((c) => c.l));
-  const range = Math.max(hi - lo, 0.000001);
-  const step = (chartW - pad * 2) / shown.length;
-  const y = (v: number) => chartH - pad - ((v - lo) / range) * (chartH - pad * 2);
-  const tasks = ["Otevři BUY 0,10 lotu.", "Měj nastavený SL pod vstupem a TP nad vstupem.", "Posuň Market Replay o 3 svíčky.", "Zkontroluj průběžný P/L.", "Zavři pozici a vyhodnoť obchod."];
-
-  return <SiteLayout><div className="mx-auto max-w-7xl px-4 py-10">
-    <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between"><div>
-      <Badge variant="secondary"><Target className="mr-1 size-3.5" /> Trading Lab</Badge>
-      <h1 className="mt-3 font-display text-3xl font-bold md:text-4xl">Nauč se pracovat s tradingovou platformou</h1>
-      <p className="mt-2 max-w-3xl text-muted-foreground">Bezpečný demo terminál pro trénink grafu, BUY/SELL, lotů, stop-lossu, take-profitu a řízení pozice. Žádné reálné peníze.</p>
-    </div><Button variant="ghost" onClick={reset}><RotateCcw className="size-4" /> Reset tréninku</Button></div>
-
-    <div className="mt-8 grid gap-5 xl:grid-cols-[1fr_330px]">
-      <section className="surface overflow-hidden">
-        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/70 p-4"><div className="flex flex-wrap gap-2">{assets.map((a, i) => <Button key={a.symbol} size="sm" variant={i === assetIndex ? "default" : "secondary"} onClick={() => selectAsset(i)}>{a.symbol}</Button>)}</div><div className="text-right"><div className="text-xs text-muted-foreground">{asset.name}</div><div className="font-display text-xl font-semibold">{price(currentPrice, asset.digits)}</div></div></div>
-        <div className="overflow-x-auto bg-secondary/10 p-3"><svg viewBox={`0 0 ${chartW} ${chartH}`} className="min-w-[680px] w-full h-[340px]">
-          {[0, .25, .5, .75, 1].map((t) => <line key={t} x1={pad} x2={chartW-pad} y1={pad+t*(chartH-pad*2)} y2={pad+t*(chartH-pad*2)} stroke="currentColor" opacity=".08" />)}
-          {shown.map((c, i) => { const x=pad+i*step+step/2, up=c.c>=c.o, top=Math.min(y(c.o),y(c.c)), body=Math.max(2,Math.abs(y(c.c)-y(c.o))); return <g key={i} className={up ? "text-[var(--color-success)]" : "text-destructive"}><line x1={x} x2={x} y1={y(c.h)} y2={y(c.l)} stroke="currentColor" strokeWidth="1.5"/><rect x={x-step*.25} y={top} width={Math.max(5,step*.5)} height={body} fill="currentColor" rx="1"/></g> })}
-          <line x1={pad} x2={chartW-pad} y1={y(currentPrice)} y2={y(currentPrice)} stroke="currentColor" strokeDasharray="4 4" opacity=".45"/>
-        </svg></div>
-        <div className="grid grid-cols-2 gap-3 border-t border-border/70 p-4 md:grid-cols-4"><Stat label="Balance" value={`${balance.toFixed(2)} USD`} /><Stat label="Equity" value={`${equity.toFixed(2)} USD`} /><Stat label="P/L" value={money(pnl)} /><Stat label="Pozice" value={`${positions.length}`} /></div>
-        <div className="border-t border-border/70 p-4"><div className="grid gap-3 md:grid-cols-3"><Field label="Loty" value={volume} step={.01} onChange={setVolume}/><Field label="SL (body)" value={sl} step={1} onChange={setSl}/><Field label="TP (body)" value={tp} step={1} onChange={setTp}/></div><div className="mt-4 grid grid-cols-2 gap-2"><Button onClick={() => open("BUY")}><TrendingUp className="size-4"/> BUY</Button><Button variant="secondary" onClick={() => open("SELL")}><TrendingDown className="size-4"/> SELL</Button></div></div>
-      </section>
-
-      <aside className="space-y-5"><div className="surface p-5"><div className="flex items-center gap-2 font-semibold"><ShieldCheck className="size-4 text-primary"/> Tréninkový úkol</div><div className="mt-3 h-2 rounded-full bg-secondary"><div className="h-full rounded-full bg-primary transition-all" style={{width:`${task/5*100}%`}}/></div><p className="mt-4 text-sm leading-relaxed">{tasks[task] ?? "Trénink dokončen."}</p><p className="mt-3 rounded-lg bg-primary/5 p-3 text-xs text-muted-foreground">{note}</p></div>
-        <div className="surface p-5"><div className="flex items-center gap-2 font-semibold"><Activity className="size-4 text-primary"/> Market Replay</div><p className="mt-1 text-xs text-muted-foreground">Rozhoduj se jen podle svíček, které už trh ukázal.</p><div className="mt-4 flex gap-2"><Button size="sm" variant="secondary" onClick={() => setVisible(v => Math.max(10,v-1))}><ChevronLeft className="size-4"/></Button><Button className="flex-1" onClick={() => replay(1)}>Další svíčka</Button><Button size="sm" variant="secondary" onClick={() => replay(3)}><ChevronRight className="size-4"/></Button></div><div className="mt-3 text-center text-xs text-muted-foreground">{visible}/{candles.length} svíček</div></div></aside>
-    </div>
-
-    <section className="surface mt-6 p-5"><div className="flex items-center justify-between gap-3"><div><h2 className="font-display text-xl font-semibold">Otevřené pozice</h2><p className="text-sm text-muted-foreground">Stejný základní workflow jako v reálném trading terminálu.</p></div><Badge variant="outline">Demo účet</Badge></div>{positions.length===0 ? <p className="mt-6 text-sm text-muted-foreground">Žádná pozice. Otevři BUY nebo SELL.</p> : <div className="mt-5 overflow-x-auto"><table className="w-full min-w-[760px] text-sm"><thead><tr className="border-b border-border/70 text-left text-xs text-muted-foreground"><th className="pb-3">Směr</th><th className="pb-3">Loty</th><th className="pb-3">Vstup</th><th className="pb-3">SL</th><th className="pb-3">TP</th><th className="pb-3">P/L</th><th className="pb-3 text-right">Akce</th></tr></thead><tbody>{positions.map(p => { const d=p.side==="BUY"?currentPrice-p.entry:p.entry-currentPrice; const val=d/asset.pip*p.volume*(asset.symbol==="EURUSD"?1:.1); return <tr key={p.id} className="border-b border-border/50"><td className="py-3 font-semibold">{p.side}</td><td>{p.volume.toFixed(2)}</td><td>{price(p.entry,asset.digits)}</td><td>{price(p.sl,asset.digits)}</td><td>{price(p.tp,asset.digits)}</td><td className={val>=0?"text-[var(--color-success)]":"text-destructive"}>{money(val)}</td><td className="py-3 text-right"><Button size="sm" variant="secondary" onClick={() => close(p.id)}>Zavřít</Button></td></tr>})}</tbody></table></div>}</section>
-  </div></SiteLayout>;
-}
-
-function Stat({label,value}:{label:string;value:string}){return <div><div className="text-[11px] uppercase tracking-wide text-muted-foreground">{label}</div><div className="mt-1 font-semibold">{value}</div></div>}
-function Field({label,value,step,onChange}:{label:string;value:number;step:number;onChange:(v:number)=>void}){return <label className="block text-[11px] uppercase tracking-wide text-muted-foreground">{label}<Input className="mt-1" type="number" min={step} step={step} value={value} onChange={e=>onChange(Math.max(step,Number(e.target.value)||step))}/></label>}
