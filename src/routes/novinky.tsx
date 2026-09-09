@@ -13,33 +13,18 @@ export const Route = createFileRoute("/novinky")({
   head: () => ({
     meta: [
       { title: "Novinky & trh — Trading Academy CZ" },
-      {
-        name: "description",
-        content:
-          "Automaticky aktualizovaný přehled nejdůležitějších událostí z trhů, makra, ropy, geopolitiky, krypta a IPO.",
-      },
+      { name: "description", content: "Automaticky aktualizovaný přehled nejdůležitějších událostí z trhů, makra, ropy, geopolitiky, krypta a IPO." },
     ],
   }),
   component: NewsPage,
 });
 
 const FILTERS = [
-  ["vse", "Vše"],
-  ["makro", "Makro"],
-  ["akcie", "Akcie"],
-  ["ropa", "Ropa"],
-  ["komodity", "Komodity"],
-  ["geopolitika", "Geopolitika"],
-  ["forex", "Forex"],
-  ["krypto", "Krypto"],
-  ["ipo", "IPO"],
+  ["vse", "Vše"], ["makro", "Makro"], ["akcie", "Akcie"], ["ropa", "Ropa"], ["komodity", "Komodity"],
+  ["geopolitika", "Geopolitika"], ["forex", "Forex"], ["krypto", "Krypto"], ["ipo", "IPO"],
 ] as const;
 
-const importanceLabel: Record<string, string> = {
-  normal: "Běžné",
-  important: "Důležité",
-  critical: "Klíčové",
-};
+const importanceLabel: Record<string, string> = { normal: "Běžné", important: "Důležité", critical: "Klíčové" };
 
 function timeAgo(date: string) {
   const diff = Math.max(0, Date.now() - new Date(date).getTime());
@@ -54,30 +39,28 @@ function NewsPage() {
   const [q, setQ] = useState("");
   const [category, setCategory] = useState("vse");
   const [refreshing, setRefreshing] = useState(false);
+  const db = supabase as any;
 
   const news = useQuery({
     queryKey: ["news-articles"],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("news_articles")
+      const { data, error } = await db.from("news_articles")
         .select("id,title,summary,why_it_matters,category,importance,published_at,source_name,source_url,tags,image_url")
-        .order("published_at", { ascending: false })
-        .limit(50);
+        .order("published_at", { ascending: false }).limit(50);
       if (error) throw error;
-      return data;
+      return data as Array<{
+        id: string; title: string; summary: string; why_it_matters: string; category: string; importance: string;
+        published_at: string; source_name: string; source_url: string; tags: string[]; image_url: string | null;
+      }>;
     },
   });
 
   const state = useQuery({
     queryKey: ["news-refresh-state"],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("news_refresh_state")
-        .select("last_success_at")
-        .eq("id", true)
-        .maybeSingle();
+      const { data, error } = await db.from("news_refresh_state").select("last_success_at").eq("id", true).maybeSingle();
       if (error) throw error;
-      return data;
+      return data as { last_success_at: string | null } | null;
     },
   });
 
@@ -93,21 +76,14 @@ function NewsPage() {
   async function refreshNow() {
     setRefreshing(true);
     try {
-      const { data, error } = await supabase.functions.invoke("refresh-news", {
-        body: { trigger: "manual" },
-      });
+      const { data, error } = await supabase.functions.invoke("refresh-news", { body: { trigger: "manual" } });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
-      await Promise.all([
-        news.refetch(),
-        state.refetch(),
-      ]);
+      await Promise.all([news.refetch(), state.refetch()]);
       toast.success(data?.skipped ? "Novinky jsou už aktuální." : "Novinky byly aktualizovány.");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Aktualizace se nepodařila.");
-    } finally {
-      setRefreshing(false);
-    }
+    } finally { setRefreshing(false); }
   }
 
   return (
@@ -117,9 +93,7 @@ function NewsPage() {
           <div>
             <Badge variant="secondary">Live market brief</Badge>
             <h1 className="mt-3 font-display text-3xl font-bold md:text-4xl">Novinky & trh</h1>
-            <p className="mt-2 max-w-2xl text-muted-foreground">
-              Automatický výběr nejdůležitějších událostí z webu, přepsaný do krátkého českého přehledu s vysvětlením dopadu na trh.
-            </p>
+            <p className="mt-2 max-w-2xl text-muted-foreground">Automatický výběr nejdůležitějších událostí z webu, stručně česky a s vysvětlením, proč jsou důležité pro trh.</p>
           </div>
           <Button variant="secondary" onClick={refreshNow} disabled={refreshing}>
             <RefreshCw className={refreshing ? "size-4 animate-spin" : "size-4"} />
@@ -133,11 +107,7 @@ function NewsPage() {
             <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Hledat novinky…" className="pl-9" />
           </div>
           <div className="flex flex-wrap gap-2">
-            {FILTERS.map(([value, label]) => (
-              <Button key={value} size="sm" variant={category === value ? "default" : "secondary"} onClick={() => setCategory(value)}>
-                {label}
-              </Button>
-            ))}
+            {FILTERS.map(([value, label]) => <Button key={value} size="sm" variant={category === value ? "default" : "secondary"} onClick={() => setCategory(value)}>{label}</Button>)}
           </div>
         </div>
 
@@ -152,7 +122,7 @@ function NewsPage() {
           <div className="surface mt-10 p-8 text-center">
             <Newspaper className="mx-auto size-7 text-primary" />
             <h2 className="mt-4 font-display text-xl font-semibold">Zatím tu nic není</h2>
-            <p className="mt-2 text-sm text-muted-foreground">Spusť aktualizaci nebo změň filtr. Zprávy se berou z webového vyhledávání a ukládají se až po ověření zdroje.</p>
+            <p className="mt-2 text-sm text-muted-foreground">Spusť aktualizaci nebo změň filtr. Zprávy se ukládají až po ověření zdroje.</p>
             <Button className="mt-5" onClick={refreshNow} disabled={refreshing}>Načíst aktuální zprávy</Button>
           </div>
         ) : (
@@ -173,12 +143,8 @@ function NewsPage() {
                     <p className="mt-1 text-sm leading-relaxed">{item.why_it_matters}</p>
                   </div>
                   <div className="mt-4 flex items-center justify-between gap-4">
-                    <div className="flex flex-wrap gap-1.5">
-                      {(item.tags ?? []).slice(0, 5).map((tag) => <span key={tag} className="rounded-full bg-secondary px-2 py-1 text-[11px] text-muted-foreground">#{tag}</span>)}
-                    </div>
-                    <a href={item.source_url} target="_blank" rel="noreferrer" className="inline-flex shrink-0 items-center gap-1 text-xs font-medium text-primary hover:underline">
-                      {item.source_name || "Zdroj"} <ArrowUpRight className="size-3.5" />
-                    </a>
+                    <div className="flex flex-wrap gap-1.5">{(item.tags ?? []).slice(0, 5).map((tag) => <span key={tag} className="rounded-full bg-secondary px-2 py-1 text-[11px] text-muted-foreground">#{tag}</span>)}</div>
+                    <a href={item.source_url} target="_blank" rel="noreferrer" className="inline-flex shrink-0 items-center gap-1 text-xs font-medium text-primary hover:underline">{item.source_name || "Zdroj"} <ArrowUpRight className="size-3.5" /></a>
                   </div>
                 </div>
               </article>
