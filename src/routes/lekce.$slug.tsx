@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Bookmark, BookmarkCheck, CheckCircle2, Clock, ArrowLeft } from "lucide-react";
+import { Bookmark, BookmarkCheck, CheckCircle2, Clock, ArrowLeft, ArrowRight } from "lucide-react";
 import { toast } from "sonner";
 import { SiteLayout } from "@/components/site-layout";
 import { Button } from "@/components/ui/button";
@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
 import { useSession } from "@/lib/auth";
-import { lessonQuery, quizQuery, levelLabel } from "@/lib/content";
+import { lessonQuery, lessonsQuery, quizQuery, levelLabel } from "@/lib/content";
 
 export const Route = createFileRoute("/lekce/$slug")({
   head: ({ params }) => ({
@@ -75,6 +75,7 @@ function LessonPage() {
   const qc = useQueryClient();
   const lesson = useQuery(lessonQuery(slug));
   const quiz = useQuery(quizQuery(slug));
+  const lessons = useQuery(lessonsQuery);
 
   const progress = useQuery({
     queryKey: ["progress", slug, user?.id],
@@ -155,6 +156,10 @@ function LessonPage() {
   const [submitted, setSubmitted] = useState(false);
   const questions = quiz.data ?? [];
   const correct = questions.filter((q) => answers[q.id] === q.correct_index).length;
+  const orderedLessons = lessons.data ?? [];
+  const currentIndex = orderedLessons.findIndex((l) => l.slug === slug);
+  const previousLesson = currentIndex > 0 ? orderedLessons[currentIndex - 1] : undefined;
+  const nextLesson = currentIndex >= 0 ? orderedLessons[currentIndex + 1] : undefined;
 
   if (lesson.isLoading) {
     return (
@@ -265,12 +270,46 @@ function LessonPage() {
             </div>
 
             {submitted ? (
-              <p className="mt-6 font-display text-lg">
-                Výsledek:{" "}
-                <span className="text-primary">
-                  {correct} / {questions.length}
-                </span>
-              </p>
+              <>
+                <div className="mt-6 rounded-xl border border-primary/20 bg-primary/5 p-4">
+                  <p className="font-display text-lg">
+                    Výsledek:{" "}
+                    <span className="text-primary">
+                      {correct} / {questions.length}
+                    </span>
+                  </p>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    {correct === questions.length
+                      ? "Perfektní! Lekci máte zvládnutou na jedničku."
+                      : correct / questions.length >= 0.6
+                        ? "Dobrá práce. Lekce je splněná a můžete pokračovat dál."
+                        : "Lekci máte za sebou. Doporučujeme si projít chyby ještě jednou."}
+                  </p>
+                </div>
+
+                <div className="mt-6 flex flex-col gap-3 border-t border-border/70 pt-6 sm:flex-row sm:items-center sm:justify-between">
+                  <Button asChild variant="secondary">
+                    <Link to="/kurzy">
+                      <ArrowLeft className="size-4" /> Zpět na učební cestu
+                    </Link>
+                  </Button>
+                  {nextLesson ? (
+                    <Button asChild>
+                      <Link to="/lekce/$slug" params={{ slug: nextLesson.slug }}>
+                        Pokračovat na další lekci
+                        <ArrowRight className="size-4" />
+                      </Link>
+                    </Button>
+                  ) : (
+                    <Button asChild>
+                      <Link to="/prehled">
+                        Zobrazit můj pokrok
+                        <ArrowRight className="size-4" />
+                      </Link>
+                    </Button>
+                  )}
+                </div>
+              </>
             ) : (
               <Button
                 className="mt-6"
@@ -323,6 +362,31 @@ function LessonPage() {
             </p>
           )}
         </section>
+
+        {questions.length === 0 && (
+          <div className="surface mt-8 flex flex-col gap-3 border-t border-border/70 p-6 sm:flex-row sm:items-center sm:justify-between">
+            <Button asChild variant="secondary">
+              <Link to="/kurzy">
+                <ArrowLeft className="size-4" /> Zpět na učební cestu
+              </Link>
+            </Button>
+            {nextLesson ? (
+              <Button asChild>
+                <Link to="/lekce/$slug" params={{ slug: nextLesson.slug }}>
+                  Pokračovat na další lekci
+                  <ArrowRight className="size-4" />
+                </Link>
+              </Button>
+            ) : (
+              <Button asChild>
+                <Link to="/prehled">
+                  Zobrazit můj pokrok
+                  <ArrowRight className="size-4" />
+                </Link>
+              </Button>
+            )}
+          </div>
+        )}
       </article>
     </SiteLayout>
   );
