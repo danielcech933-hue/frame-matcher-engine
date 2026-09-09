@@ -11,6 +11,7 @@ import { Route as LekceSlugRouteImport } from './routes/lekce.$slug'
 import { Route as NovinkyRouteImport } from './routes/novinky'
 import { Route as SlovnikRouteImport } from './routes/slovnik'
 import { Route as StylyRouteImport } from './routes/styly'
+import { Route as TradingLabRouteImport } from './routes/trading-lab'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as AuthenticatedRouteImport } from './routes/_authenticated/route'
@@ -24,6 +25,7 @@ const LekceSlugRoute = LekceSlugRouteImport.update({ id: '/lekce/$slug', path: '
 const NovinkyRoute = NovinkyRouteImport.update({ id: '/novinky', path: '/novinky', getParentRoute: () => rootRouteImport } as any)
 const SlovnikRoute = SlovnikRouteImport.update({ id: '/slovnik', path: '/slovnik', getParentRoute: () => rootRouteImport } as any)
 const StylyRoute = StylyRouteImport.update({ id: '/styly', path: '/styly', getParentRoute: () => rootRouteImport } as any)
+const TradingLabRoute = TradingLabRouteImport.update({ id: '/trading-lab', path: '/trading-lab', getParentRoute: () => rootRouteImport } as any)
 const AuthRoute = AuthRouteImport.update({ id: '/auth', path: '/auth', getParentRoute: () => rootRouteImport } as any)
 const ResetPasswordRoute = ResetPasswordRouteImport.update({ id: '/reset-password', path: '/reset-password', getParentRoute: () => rootRouteImport } as any)
 const AuthenticatedRoute = AuthenticatedRouteImport.update({ id: '/_authenticated', getParentRoute: () => rootRouteImport } as any)
@@ -38,6 +40,7 @@ export interface FileRoutesByFullPath {
   '/novinky': typeof NovinkyRoute
   '/slovnik': typeof SlovnikRoute
   '/styly': typeof StylyRoute
+  '/trading-lab': typeof TradingLabRoute
   '/auth': typeof AuthRoute
   '/reset-password': typeof ResetPasswordRoute
   '/admin': typeof AuthenticatedAdminRoute
@@ -51,6 +54,7 @@ export interface FileRoutesByTo {
   '/novinky': typeof NovinkyRoute
   '/slovnik': typeof SlovnikRoute
   '/styly': typeof StylyRoute
+  '/trading-lab': typeof TradingLabRoute
   '/auth': typeof AuthRoute
   '/reset-password': typeof ResetPasswordRoute
   '/admin': typeof AuthenticatedAdminRoute
@@ -65,6 +69,7 @@ export interface FileRoutesById {
   '/novinky': typeof NovinkyRoute
   '/slovnik': typeof SlovnikRoute
   '/styly': typeof StylyRoute
+  '/trading-lab': typeof TradingLabRoute
   '/auth': typeof AuthRoute
   '/reset-password': typeof ResetPasswordRoute
   '/_authenticated': typeof AuthenticatedRoute
@@ -73,10 +78,10 @@ export interface FileRoutesById {
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/instrumenty' | '/kurzy' | '/lekce/$slug' | '/novinky' | '/slovnik' | '/styly' | '/auth' | '/reset-password' | '/admin' | '/prehled'
+  fullPaths: '/' | '/instrumenty' | '/kurzy' | '/lekce/$slug' | '/novinky' | '/slovnik' | '/styly' | '/trading-lab' | '/auth' | '/reset-password' | '/admin' | '/prehled'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/instrumenty' | '/kurzy' | '/lekce/$slug' | '/novinky' | '/slovnik' | '/styly' | '/auth' | '/reset-password' | '/admin' | '/prehled'
-  id: '__root__' | '/' | '/instrumenty' | '/kurzy' | '/lekce/$slug' | '/novinky' | '/slovnik' | '/styly' | '/auth' | '/reset-password' | '/_authenticated' | '/admin' | '/prehled'
+  to: '/' | '/instrumenty' | '/kurzy' | '/lekce/$slug' | '/novinky' | '/slovnik' | '/styly' | '/trading-lab' | '/auth' | '/reset-password' | '/admin' | '/prehled'
+  id: '__root__' | '/' | '/instrumenty' | '/kurzy' | '/lekce/$slug' | '/novinky' | '/slovnik' | '/styly' | '/trading-lab' | '/auth' | '/reset-password' | '/_authenticated' | '/admin' | '/prehled'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -87,6 +92,7 @@ export interface RootRouteChildren {
   NovinkyRoute: typeof NovinkyRoute
   SlovnikRoute: typeof SlovnikRoute
   StylyRoute: typeof StylyRoute
+  TradingLabRoute: typeof TradingLabRoute
   AuthRoute: typeof AuthRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
   AuthenticatedRoute: typeof AuthenticatedRoute
@@ -105,6 +111,7 @@ declare module '@tanstack/react-router' {
     '/novinky': { id: '/novinky'; path: '/novinky'; fullPath: '/novinky'; preLoaderRoute: typeof NovinkyRouteImport; parentRoute: typeof rootRouteImport }
     '/slovnik': { id: '/slovnik'; path: '/slovnik'; fullPath: '/slovnik'; preLoaderRoute: typeof SlovnikRouteImport; parentRoute: typeof rootRouteImport }
     '/styly': { id: '/styly'; path: '/styly'; fullPath: '/styly'; preLoaderRoute: typeof StylyRouteImport; parentRoute: typeof rootRouteImport }
+    '/trading-lab': { id: '/trading-lab'; path: '/trading-lab'; fullPath: '/trading-lab'; preLoaderRoute: typeof TradingLabRouteImport; parentRoute: typeof rootRouteImport }
     '/auth': { id: '/auth'; path: '/auth'; fullPath: '/auth'; preLoaderRoute: typeof AuthRouteImport; parentRoute: typeof rootRouteImport }
     '/reset-password': { id: '/reset-password'; path: '/reset-password'; fullPath: '/reset-password'; preLoaderRoute: typeof ResetPasswordRouteImport; parentRoute: typeof rootRouteImport }
     '/_authenticated/admin': { id: '/_authenticated/admin'; path: '/admin'; fullPath: '/admin'; preLoaderRoute: typeof AuthenticatedAdminRouteImport; parentRoute: typeof AuthenticatedRouteImport }
@@ -114,7 +121,7 @@ declare module '@tanstack/react-router' {
 
 const authenticatedRouteChildren: AuthenticatedRouteChildren = { AuthenticatedAdminRoute, AuthenticatedPrehledRoute }
 AuthenticatedRoute._addFileChildren(authenticatedRouteChildren)
-const rootRouteChildren: RootRouteChildren = { IndexRoute, InstrumentyRoute, KurzyRoute, LekceSlugRoute, NovinkyRoute, SlovnikRoute, StylyRoute, AuthRoute, ResetPasswordRoute, AuthenticatedRoute }
+const rootRouteChildren: RootRouteChildren = { IndexRoute, InstrumentyRoute, KurzyRoute, LekceSlugRoute, NovinkyRoute, SlovnikRoute, StylyRoute, TradingLabRoute, AuthRoute, ResetPasswordRoute, AuthenticatedRoute }
 export const routeTree = rootRouteImport._addFileChildren(rootRouteChildren)._addFileTypes<FileRouteTypes>()
 
 import type { getRouter } from './router.tsx'
