@@ -26,57 +26,32 @@ export const Route = createFileRoute("/slovnik")({
   component: Slovnik,
 });
 
-const ANALOGIES: Record<string, string> = {
-  spread:
-    "Je to jako rozdíl mezi cenou, za kterou je někdo ochotný něco koupit, a cenou, za kterou to jiný ochotný prodat. Ten malý rozdíl platíte už při vstupu do obchodu.",
-  leverage:
-    "Je to jako obchodování s větší částkou, než kolik máte vlastních peněz na stole. Zvětší ziskový potenciál, ale úplně stejně zvětší i ztrátu.",
-  pákový_efekt:
-    "Je to jako delší páka v mechanice: malou vlastní silou dokážete pohnout větší věcí. Bohužel se tím zvětší i následky špatného pohybu.",
-  drawdown:
-    "Představte si vrchol kopce a pak cestu dolů, než znovu vystoupáte nahoru. Drawdown měří právě tu největší cestu dolů od předchozího vrcholu.",
-  volatilita:
-    "Je to jako rozbouřené moře. Klidná hladina znamená malé pohyby ceny, velké vlny znamenají vysokou volatilitu.",
-  likvidita:
-    "Je to jako rušný obchod plný nakupujících a prodávajících. Když je lidí hodně, snadno něco koupíte nebo prodáte; když je obchod prázdný, cena může při nákupu poskočit.",
-  market_order:
-    "Je to jako říct prodavači: ‚Vezmu to hned za aktuální cenu.‘ Neřešíte přesnou cenu, hlavní je rychlost provedení.",
-  limit_order:
-    "Je to jako říct: ‚Koupím to nejvýše za 100 Kč.‘ Když cenu 100 Kč nikdo nenabídne, obchod se neuskuteční.",
-  stop_loss:
-    "Je to jako nouzová brzda. Když se cena vydá příliš proti vám, předem určené pravidlo obchod ukončí a zabrání ještě větší ztrátě.",
-  take_profit:
-    "Je to jako automatický výběr výhry. Řeknete si předem, při jaké ceně už jste spokojený, a pozici necháte zavřít.",
-  divergence:
-    "Je to jako když auto zrychluje, ale otáčkoměr začíná ukazovat něco jiného. Cena a indikátor se rozcházejí a může to být varovný signál.",
-  support:
-    "Představte si podlahu v místnosti. Když cena klesá, support je oblast, kde se často objeví kupující a pád se může zpomalit nebo odrazit.",
-  resistance:
-    "Je to jako strop. Cena se k němu může několikrát vrátit, ale právě v této oblasti se často objeví více prodejců.",
-  trend:
-    "Je to jako jízda po silnici, která dlouhodobě stoupá nebo klesá. Jednotlivé zatáčky mohou být opačně, ale hlavní směr zůstává stejný.",
-  rsi:
-    "Představte si teploměr sentimentu. Neukazuje budoucnost, ale napovídá, jestli byl pohyb v poslední době mimořádně silný na jednu stranu.",
-  macd:
-    "Je to jako porovnávat dvě rychlosti jízdy. Sleduje rozdíl mezi rychlejším a pomalejším tempem ceny a pomáhá zachytit změnu momenta.",
-  etf:
-    "Je to jako koupit celý košík místo jedné věci. Jedním nákupem získáte malý podíl ve velkém množství aktiv.",
-  diverzifikace:
-    "Je to jako nerozdávat všechny peníze do jedné kapsy. Když jedna věc selže, nemusí s ní padnout celé portfolio.",
-  short:
-    "Je to jako nejdřív si půjčit zboží, prodat ho a doufat, že ho později koupíte levněji a vrátíte. Vyděláváte na poklesu, ale riziko může být velmi vysoké.",
-  long:
-    "Je to jednoduše sázka na růst. Koupíte aktivum a doufáte, že ho později prodáte za vyšší cenu.",
-  "risk_reward":
-    "Je to jako rozhodování, jestli se vám vyplatí nastoupit do závodu kvůli možné výhře. Porovnáváte, co můžete získat, s tím, co jste ochotni ztratit.",
-  "stop_limit":
-    "Je to jako nouzová brzda s podmínkou: nejdřív se musí spustit a potom ještě potřebujete, aby se obchod vešel do vašeho cenového limitu.",
-  "compound_interest":
-    "Je to jako sněhová koule, která se při cestě z kopce nabaluje. Výnosy začnou vytvářet další výnosy a efekt se časem zrychluje.",
-  "backtesting":
-    "Je to jako projet si závodní trať nanečisto na starých záznamech. Zjišťujete, jak by vaše strategie fungovala v minulosti, než ji pustíte na skutečný trh.",
-  "order_flow":
-    "Je to jako sledovat dav lidí u pokladny místo jen cenovky. Nevidíte jen cenu, ale i to, kdo právě tlačí na nákup a kdo na prodej.",
+const FALLBACK_ANALOGIES: Record<string, string> = {
+  spread: "Je to malá mezera mezi cenou, za kterou můžeš hned prodat, a cenou, za kterou můžeš hned koupit.",
+  leverage: "Je to jako použít dlouhou páku: s menším vlastním obnosem ovládáš větší hodnotu. Stejně tak ale můžeš rychleji přijít o své peníze.",
+  pákový_efekt: "Je to jako mechanická páka. Malou vlastní silou můžeš působit na větší věc, ale stejný princip zvětšuje i následky chyby.",
+  drawdown: "Představ si účet jako kopec. Drawdown je vzdálenost od předchozího vrcholu k nejnižšímu místu, kam účet po něm spadl.",
+  volatilita: "Je to jako rozbouřené moře. Klidná hladina znamená malé pohyby ceny, velké vlny znamenají vysokou volatilitu.",
+  likvidita: "Je to jako rušný obchod. Když je v něm hodně kupujících a prodávajících, snadno něco koupíš nebo prodáš bez velkého pohybu ceny.",
+  market_order: "Je to jako říct prodavači: Vezmu to hned za aktuální cenu. Důležitější je rychlost než přesná cena.",
+  limit_order: "Je to jako říct: Koupím to nejvýše za 100 Kč. Když za tuto cenu nikdo neprodá, obchod se neuskuteční.",
+  stop_loss: "Je to jako nouzová brzda. Když se cena vydá příliš proti tobě, předem nastavené pravidlo obchod ukončí.",
+  take_profit: "Je to jako automatické vyzvednutí výhry. Předem řekneš, při jaké ceně chceš obchod ukončit se ziskem.",
+  divergence: "Je to jako když auto zrychluje, ale otáčkoměr začne ukazovat jiný příběh. Cena a indikátor se rozcházejí.",
+  support: "Je to jako podlaha. Když cena klesá k této oblasti, často se objeví více kupujících a pokles se může zastavit.",
+  resistance: "Je to jako strop. Cena k němu může opakovaně dojít, ale v této oblasti se často objeví více prodejců.",
+  trend: "Je to jako silnice, která dlouhodobě stoupá. Může mít zatáčky a krátké sjezdy, ale hlavní směr je pořád nahoru.",
+  rsi: "Představ si ukazatel, který říká, jak silně se cena v poslední době pohybovala jedním směrem. Neříká s jistotou, co bude dál.",
+  macd: "Je to jako porovnávat rychlost auta s jeho delším průměrným tempem. Pomáhá zachytit, jestli pohyb zrychluje nebo zpomaluje.",
+  etf: "Je to jako koupit celý košík věcí místo jedné položky. Jedním nákupem získáš podíl ve více aktivech najednou.",
+  diverzifikace: "Je to jako nerozdávat všechny peníze do jedné kapsy. Když jedna investice dopadne špatně, nemusí s ní padnout celé portfolio.",
+  short: "Je to jako půjčit si věc, prodat ji a doufat, že ji později koupíš levněji a vrátíš. Vyděláváš na poklesu ceny.",
+  long: "Je to sázka na růst ceny. Koupíš aktivum s očekáváním, že ho později prodáš dráž.",
+  risk_reward: "Je to jako zvážit, jestli se ti vyplatí riskovat 100 Kč kvůli možné výhře 200 Kč. Porovnáváš riziko s potenciálním ziskem.",
+  stop_limit: "Je to jako nouzová brzda se dvěma podmínkami: nejdřív se musí aktivovat a potom se obchod musí vejít do tvého cenového limitu.",
+  compound_interest: "Je to jako sněhová koule, která při jízdě z kopce nabírá další sníh. Výnosy začnou vytvářet další výnosy.",
+  backtesting: "Je to jako projet si závodní trať nanečisto na starých záznamech. Zjišťuješ, jak by strategie fungovala v minulosti.",
+  order_flow: "Je to jako sledovat, kdo právě tlačí na dveře. Nevidíš jen cenu, ale i sílu skutečných nákupů a prodejů.",
 };
 
 function normalizeTerm(term: string) {
@@ -91,27 +66,35 @@ function normalizeTerm(term: string) {
     .replace(/^_|_$/g, "");
 }
 
-function analogyFor(term: string, category?: string | null) {
+function analogyFor(term: string, category?: string | null, analogy?: string | null) {
+  if (analogy?.trim()) return analogy.trim();
+
   const key = normalizeTerm(term);
-  if (ANALOGIES[key]) return ANALOGIES[key];
+  if (FALLBACK_ANALOGIES[key]) return FALLBACK_ANALOGIES[key];
 
   if (category === "technicka_analyza") {
-    return `Ber ${term} jako jednu pomůcku na palubní desce auta. Sama o sobě ti neřekne, kam dojedeš, ale pomůže ti lépe číst, co se právě na trhu děje.`;
+    return `Představ si pojem ${term} jako jednu pomůcku na palubní desce auta. Sám ti neřekne, kam dojedeš, ale pomůže ti lépe pochopit, co se právě děje.`;
   }
   if (category === "risk_management") {
-    return `Přemýšlej o pojmu ${term} jako o bezpečnostním pásu. Nezajistí, že se nic nestane, ale může výrazně omezit následky špatného scénáře.`;
+    return `Ber ${term} jako bezpečnostní pás. Nezabrání nehodě, ale může výrazně omezit její následky.`;
   }
-  if (category === "fundamentalni_analyza") {
-    return `Představ si ${term} jako kontrolu motoru firmy. Nesleduješ jen cenu na tachometru, ale hlavně to, jak zdravě celý podnik skutečně funguje.`;
+  if (category === "fundament") {
+    return `Představ si ${term} jako kontrolu motoru firmy. Neřešíš jen cenu akcie, ale snažíš se zjistit, jak zdravě firma skutečně funguje.`;
   }
-  if (category === "obchodovani") {
-    return `Představ si ${term} jako jedno pravidlo v obchodním plánu. Pomáhá ti rozhodovat se systematicky místo toho, abys reagoval jen podle emocí.`;
+  if (category === "trhy") {
+    return `Představ si ${term} jako jednu část rušného tržiště. Pomáhá ti pochopit, co právě dělají kupující a prodávající.`;
   }
   if (category === "psychologie") {
-    return `Je to podobné jako sportovní výkon. Když tě ovládnou emoce, můžeš udělat horší rozhodnutí, i když technicky víš, co máš dělat.`;
+    return `Je to podobné jako při sportu: když rozhoduješ pod tlakem a emocemi, můžeš udělat chybu, kterou bys v klidu neudělal.`;
+  }
+  if (category === "opce") {
+    return `Představ si ${term} jako jednu podmínku v rezervaci. Pomáhá určit, co se s opcí stane, když se změní cena, čas nebo očekávané riziko.`;
+  }
+  if (category === "pozice") {
+    return `Představ si ${term} jako jedno pravidlo pro velikost a držení obchodu. Pomáhá ti vědět, kolik prostoru obchodu vůbec dáváš.`;
   }
 
-  return `Představ si ${term} jako jednu součástku v tradingovém stroji. Sama o sobě není celý systém, ale pomáhá ti pochopit, co se na trhu právě děje.`;
+  return `Představ si ${term} jako jednu součástku v tradingovém stroji. Sama není celý systém, ale pomáhá ti pochopit, jak trh funguje.`;
 }
 
 function Slovnik() {
@@ -120,7 +103,7 @@ function Slovnik() {
   const [openId, setOpenId] = useState<string | null>(null);
 
   const filtered = (data ?? []).filter((t) =>
-    `${t.term} ${t.definition}`.toLowerCase().includes(q.trim().toLowerCase()),
+    `${t.term} ${t.definition} ${t.analogy ?? ""}`.toLowerCase().includes(q.trim().toLowerCase()),
   );
 
   return (
@@ -129,8 +112,7 @@ function Slovnik() {
         <div>
           <h1 className="font-display text-3xl font-bold md:text-4xl">Slovníček pojmů</h1>
           <p className="mt-2 text-muted-foreground">
-            Klikni na pojem a zobrazí se ti stručné vysvětlení, jednoduché přirovnání a praktický
-            kontext.
+            Klikni na pojem a zobrazí se ti stručné vysvětlení, jednoduché přirovnání a praktický kontext.
           </p>
         </div>
 
@@ -200,7 +182,7 @@ function Slovnik() {
                                 <Lightbulb className="size-4" /> Přirovnání
                               </div>
                               <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-                                {analogyFor(t.term, t.category)}
+                                {analogyFor(t.term, t.category, t.analogy ?? null)}
                               </p>
                             </div>
                           </div>
