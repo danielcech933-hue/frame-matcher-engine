@@ -10,33 +10,73 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as InstrumentyRouteImport } from './routes/instrumenty'
+import { Route as KurzyRouteImport } from './routes/kurzy'
+import { Route as SlovnikRouteImport } from './routes/slovnik'
+import { Route as StylyRouteImport } from './routes/styly'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const InstrumentyRoute = InstrumentyRouteImport.update({
+  id: '/instrumenty',
+  path: '/instrumenty',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const KurzyRoute = KurzyRouteImport.update({
+  id: '/kurzy',
+  path: '/kurzy',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SlovnikRoute = SlovnikRouteImport.update({
+  id: '/slovnik',
+  path: '/slovnik',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const StylyRoute = StylyRouteImport.update({
+  id: '/styly',
+  path: '/styly',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/instrumenty': typeof InstrumentyRoute
+  '/kurzy': typeof KurzyRoute
+  '/slovnik': typeof SlovnikRoute
+  '/styly': typeof StylyRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/instrumenty': typeof InstrumentyRoute
+  '/kurzy': typeof KurzyRoute
+  '/slovnik': typeof SlovnikRoute
+  '/styly': typeof StylyRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/instrumenty': typeof InstrumentyRoute
+  '/kurzy': typeof KurzyRoute
+  '/slovnik': typeof SlovnikRoute
+  '/styly': typeof StylyRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths: '/' | '/instrumenty' | '/kurzy' | '/slovnik' | '/styly'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to: '/' | '/instrumenty' | '/kurzy' | '/slovnik' | '/styly'
+  id: '__root__' | '/' | '/instrumenty' | '/kurzy' | '/slovnik' | '/styly'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  InstrumentyRoute: typeof InstrumentyRoute
+  KurzyRoute: typeof KurzyRoute
+  SlovnikRoute: typeof SlovnikRoute
+  StylyRoute: typeof StylyRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -48,11 +88,43 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/instrumenty': {
+      id: '/instrumenty'
+      path: '/instrumenty'
+      fullPath: '/instrumenty'
+      preLoaderRoute: typeof InstrumentyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/kurzy': {
+      id: '/kurzy'
+      path: '/kurzy'
+      fullPath: '/kurzy'
+      preLoaderRoute: typeof KurzyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/slovnik': {
+      id: '/slovnik'
+      path: '/slovnik'
+      fullPath: '/slovnik'
+      preLoaderRoute: typeof SlovnikRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/styly': {
+      id: '/styly'
+      path: '/styly'
+      fullPath: '/styly'
+      preLoaderRoute: typeof StylyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  InstrumentyRoute: InstrumentyRoute,
+  KurzyRoute: KurzyRoute,
+  SlovnikRoute: SlovnikRoute,
+  StylyRoute: StylyRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
