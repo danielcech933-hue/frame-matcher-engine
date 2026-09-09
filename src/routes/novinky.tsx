@@ -20,7 +20,8 @@ export const Route = createFileRoute("/novinky")({
 });
 
 const NEWS_SUPABASE_URL = "https://ntzjirsejfvgvuhmbqvt.supabase.co";
-const NEWS_SUPABASE_KEY = "sb_publishable_V0KDBHBggGqhqKqSSB-JPw_iJyhYu9H";
+// Publishable key belonging to the same Supabase project as NEWS_SUPABASE_URL.
+const NEWS_SUPABASE_KEY = "sb_publishable_h6OPGkq8kd5c1wvqLlQ02g_VdQ9Vjw1";
 const newsSupabase = createClient(NEWS_SUPABASE_URL, NEWS_SUPABASE_KEY);
 
 const FILTERS = [
@@ -46,6 +47,7 @@ function NewsPage() {
 
   const news = useQuery({
     queryKey: ["news-articles-live"],
+    staleTime: 30_000,
     refetchInterval: 60_000,
     refetchIntervalInBackground: true,
     queryFn: async () => {
@@ -64,6 +66,7 @@ function NewsPage() {
 
   const state = useQuery({
     queryKey: ["news-refresh-state-live"],
+    staleTime: 30_000,
     refetchInterval: 60_000,
     refetchIntervalInBackground: true,
     queryFn: async () => {
@@ -135,15 +138,13 @@ function NewsPage() {
         </div>
 
         {news.isLoading ? (
-          <div className="mt-10 grid gap-5 lg:grid-cols-2">
-            {[1,2,3,4].map((i) => <div key={i} className="surface h-56 animate-pulse rounded-xl" />)}
-          </div>
+          <div className="mt-10 grid gap-5 lg:grid-cols-2">{[1,2,3,4].map((i) => <div key={i} className="surface h-56 animate-pulse rounded-xl" />)}</div>
         ) : news.isError ? (
           <div className="surface mt-10 p-8 text-center">
             <AlertTriangle className="mx-auto size-7 text-primary" />
             <h2 className="mt-4 font-display text-xl font-semibold">Nepodařilo se načíst live feed</h2>
             <p className="mt-2 text-sm text-muted-foreground">Zkontroluj připojení databáze a zkus aktualizaci znovu.</p>
-            <Button className="mt-5" onClick={refreshNow} disabled={refreshing}>Načíst aktuální zprávy</Button>
+            <Button className="mt-5" onClick={() => news.refetch()}>Zkusit znovu</Button>
           </div>
         ) : filtered.length === 0 ? (
           <div className="surface mt-10 p-8 text-center">
