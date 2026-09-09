@@ -9,6 +9,7 @@ import { cn } from "@/lib/utils";
 
 const NAV = [
   { to: "/kurzy", label: "Učební cesty" },
+  { to: "/novinky", label: "Novinky & trh" },
   { to: "/instrumenty", label: "Instrumenty" },
   { to: "/styly", label: "Obchodní styly" },
   { to: "/slovnik", label: "Slovníček" },
