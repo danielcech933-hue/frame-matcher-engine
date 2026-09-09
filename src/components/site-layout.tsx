@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from "react";
 import { Link, useNavigate } from "@tanstack/react-router";
-import { Menu, X, LineChart, LogOut, LayoutDashboard, Shield } from "lucide-react";
+import { Menu, X, LineChart, LogOut, LayoutDashboard, Shield, FlaskConical } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useIsAdmin, useSession } from "@/lib/auth";
@@ -10,6 +10,7 @@ import { cn } from "@/lib/utils";
 const NAV = [
   { to: "/kurzy", label: "Učební cesty" },
   { to: "/novinky", label: "Novinky & trh" },
+  { to: "/trading-lab", label: "Trading Lab" },
   { to: "/instrumenty", label: "Instrumenty" },
   { to: "/styly", label: "Obchodní styly" },
   { to: "/slovnik", label: "Slovníček" },
