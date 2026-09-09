@@ -157,7 +157,7 @@ function NewsPage() {
   const news = useQuery({
     queryKey: ["news-articles-live"],
     staleTime: 30_000,
-    refetchInterval: 60_000,
+    refetchInterval: 600_000,
     refetchIntervalInBackground: true,
     queryFn: async () => {
       const { data, error } = await newsSupabase
@@ -173,7 +173,7 @@ function NewsPage() {
   const archive = useQuery({
     queryKey: ["news-archive"],
     staleTime: 60_000,
-    refetchInterval: 300_000,
+    refetchInterval: 600_000,
     refetchIntervalInBackground: true,
     enabled: view === "archive" || !q,
     queryFn: async () => {
@@ -191,7 +191,7 @@ function NewsPage() {
   const state = useQuery({
     queryKey: ["news-refresh-state-live"],
     staleTime: 30_000,
-    refetchInterval: 60_000,
+    refetchInterval: 600_000,
     refetchIntervalInBackground: true,
     queryFn: async () => {
       const { data, error } = await newsSupabase
@@ -311,6 +311,9 @@ function NewsPage() {
             {state.data?.last_success_at
               ? `Feed aktualizován před ${timeAgo(state.data.last_success_at)}`
               : "První aktualizace probíhá…"}
+          </span>
+          <span className="inline-flex items-center gap-2 text-primary">
+            <RefreshCw className="size-3.5" /> Automatická aktualizace každých 10 minut
           </span>
           {view === "archive" && (
             <span className="inline-flex items-center gap-2 text-primary">
