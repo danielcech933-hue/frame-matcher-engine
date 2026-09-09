@@ -8,6 +8,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as InstrumentyRouteImport } from './routes/instrumenty'
 import { Route as KurzyRouteImport } from './routes/kurzy'
 import { Route as LekceSlugRouteImport } from './routes/lekce.$slug'
+import { Route as NovinkyRouteImport } from './routes/novinky'
 import { Route as SlovnikRouteImport } from './routes/slovnik'
 import { Route as StylyRouteImport } from './routes/styly'
 import { Route as AuthRouteImport } from './routes/auth'
@@ -20,6 +21,7 @@ const IndexRoute = IndexRouteImport.update({ id: '/', path: '/', getParentRoute:
 const InstrumentyRoute = InstrumentyRouteImport.update({ id: '/instrumenty', path: '/instrumenty', getParentRoute: () => rootRouteImport } as any)
 const KurzyRoute = KurzyRouteImport.update({ id: '/kurzy', path: '/kurzy', getParentRoute: () => rootRouteImport } as any)
 const LekceSlugRoute = LekceSlugRouteImport.update({ id: '/lekce/$slug', path: '/lekce/$slug', getParentRoute: () => rootRouteImport } as any)
+const NovinkyRoute = NovinkyRouteImport.update({ id: '/novinky', path: '/novinky', getParentRoute: () => rootRouteImport } as any)
 const SlovnikRoute = SlovnikRouteImport.update({ id: '/slovnik', path: '/slovnik', getParentRoute: () => rootRouteImport } as any)
 const StylyRoute = StylyRouteImport.update({ id: '/styly', path: '/styly', getParentRoute: () => rootRouteImport } as any)
 const AuthRoute = AuthRouteImport.update({ id: '/auth', path: '/auth', getParentRoute: () => rootRouteImport } as any)
@@ -33,6 +35,7 @@ export interface FileRoutesByFullPath {
   '/instrumenty': typeof InstrumentyRoute
   '/kurzy': typeof KurzyRoute
   '/lekce/$slug': typeof LekceSlugRoute
+  '/novinky': typeof NovinkyRoute
   '/slovnik': typeof SlovnikRoute
   '/styly': typeof StylyRoute
   '/auth': typeof AuthRoute
@@ -45,6 +48,7 @@ export interface FileRoutesByTo {
   '/instrumenty': typeof InstrumentyRoute
   '/kurzy': typeof KurzyRoute
   '/lekce/$slug': typeof LekceSlugRoute
+  '/novinky': typeof NovinkyRoute
   '/slovnik': typeof SlovnikRoute
   '/styly': typeof StylyRoute
   '/auth': typeof AuthRoute
@@ -58,6 +62,7 @@ export interface FileRoutesById {
   '/instrumenty': typeof InstrumentyRoute
   '/kurzy': typeof KurzyRoute
   '/lekce/$slug': typeof LekceSlugRoute
+  '/novinky': typeof NovinkyRoute
   '/slovnik': typeof SlovnikRoute
   '/styly': typeof StylyRoute
   '/auth': typeof AuthRoute
@@ -68,10 +73,10 @@ export interface FileRoutesById {
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/instrumenty' | '/kurzy' | '/lekce/$slug' | '/slovnik' | '/styly' | '/auth' | '/reset-password' | '/admin' | '/prehled'
+  fullPaths: '/' | '/instrumenty' | '/kurzy' | '/lekce/$slug' | '/novinky' | '/slovnik' | '/styly' | '/auth' | '/reset-password' | '/admin' | '/prehled'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/instrumenty' | '/kurzy' | '/lekce/$slug' | '/slovnik' | '/styly' | '/auth' | '/reset-password' | '/admin' | '/prehled'
-  id: '__root__' | '/' | '/instrumenty' | '/kurzy' | '/lekce/$slug' | '/slovnik' | '/styly' | '/auth' | '/reset-password' | '/_authenticated' | '/admin' | '/prehled'
+  to: '/' | '/instrumenty' | '/kurzy' | '/lekce/$slug' | '/novinky' | '/slovnik' | '/styly' | '/auth' | '/reset-password' | '/admin' | '/prehled'
+  id: '__root__' | '/' | '/instrumenty' | '/kurzy' | '/lekce/$slug' | '/novinky' | '/slovnik' | '/styly' | '/auth' | '/reset-password' | '/_authenticated' | '/admin' | '/prehled'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -79,6 +84,7 @@ export interface RootRouteChildren {
   InstrumentyRoute: typeof InstrumentyRoute
   KurzyRoute: typeof KurzyRoute
   LekceSlugRoute: typeof LekceSlugRoute
+  NovinkyRoute: typeof NovinkyRoute
   SlovnikRoute: typeof SlovnikRoute
   StylyRoute: typeof StylyRoute
   AuthRoute: typeof AuthRoute
@@ -96,6 +102,7 @@ declare module '@tanstack/react-router' {
     '/instrumenty': { id: '/instrumenty'; path: '/instrumenty'; fullPath: '/instrumenty'; preLoaderRoute: typeof InstrumentyRouteImport; parentRoute: typeof rootRouteImport }
     '/kurzy': { id: '/kurzy'; path: '/kurzy'; fullPath: '/kurzy'; preLoaderRoute: typeof KurzyRouteImport; parentRoute: typeof rootRouteImport }
     '/lekce/$slug': { id: '/lekce/$slug'; path: '/lekce/$slug'; fullPath: '/lekce/$slug'; preLoaderRoute: typeof LekceSlugRouteImport; parentRoute: typeof rootRouteImport }
+    '/novinky': { id: '/novinky'; path: '/novinky'; fullPath: '/novinky'; preLoaderRoute: typeof NovinkyRouteImport; parentRoute: typeof rootRouteImport }
     '/slovnik': { id: '/slovnik'; path: '/slovnik'; fullPath: '/slovnik'; preLoaderRoute: typeof SlovnikRouteImport; parentRoute: typeof rootRouteImport }
     '/styly': { id: '/styly'; path: '/styly'; fullPath: '/styly'; preLoaderRoute: typeof StylyRouteImport; parentRoute: typeof rootRouteImport }
     '/auth': { id: '/auth'; path: '/auth'; fullPath: '/auth'; preLoaderRoute: typeof AuthRouteImport; parentRoute: typeof rootRouteImport }
@@ -107,7 +114,7 @@ declare module '@tanstack/react-router' {
 
 const authenticatedRouteChildren: AuthenticatedRouteChildren = { AuthenticatedAdminRoute, AuthenticatedPrehledRoute }
 AuthenticatedRoute._addFileChildren(authenticatedRouteChildren)
-const rootRouteChildren: RootRouteChildren = { IndexRoute, InstrumentyRoute, KurzyRoute, LekceSlugRoute, SlovnikRoute, StylyRoute, AuthRoute, ResetPasswordRoute, AuthenticatedRoute }
+const rootRouteChildren: RootRouteChildren = { IndexRoute, InstrumentyRoute, KurzyRoute, LekceSlugRoute, NovinkyRoute, SlovnikRoute, StylyRoute, AuthRoute, ResetPasswordRoute, AuthenticatedRoute }
 export const routeTree = rootRouteImport._addFileChildren(rootRouteChildren)._addFileTypes<FileRouteTypes>()
 
 import type { getRouter } from './router.tsx'
