@@ -43,6 +43,8 @@ function NewsPage() {
 
   const news = useQuery({
     queryKey: ["news-articles"],
+    refetchInterval: 60_000,
+    refetchIntervalInBackground: true,
     queryFn: async () => {
       const { data, error } = await db.from("news_articles")
         .select("id,title,summary,why_it_matters,category,importance,published_at,source_name,source_url,tags,image_url")
@@ -57,6 +59,8 @@ function NewsPage() {
 
   const state = useQuery({
     queryKey: ["news-refresh-state"],
+    refetchInterval: 60_000,
+    refetchIntervalInBackground: true,
     queryFn: async () => {
       const { data, error } = await db.from("news_refresh_state").select("last_success_at").eq("id", true).maybeSingle();
       if (error) throw error;
