@@ -1,132 +1,27 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-
-const cors = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "content-type, authorization, apikey",
-  "Access-Control-Allow-Methods": "POST, OPTIONS",
-};
-
-const SYSTEM = `Jsi editor ekonomického a finančního zpravodajství pro českou vzdělávací platformu Trading Academy CZ. Vytváříš pouze stručný přehled skutečně důležitých událostí z webového vyhledávání.
-
-PRAVIDLA:
-- Používej pouze informace, které jsi ověřil ve výsledcích webového vyhledávání. Když něco nelze ověřit, nezařazuj to.
-- Hledej především posledních 24 hodin, u velkých událostí maximálně posledních 72 hodin.
-- Upřednostni kvalitní primární a důvěryhodné zdroje (centrální banky, vlády, burzy, firmy, Reuters, Bloomberg, AP, FT, WSJ, CNBC a další renomovaná média).
-- Zaměř se na události, které mohou mít významný dopad na trhy: akcie a indexy, centrální banky a makrodata, ropa a energie, geopolitika včetně Hormuzského průlivu, zlato a komodity, forex, kryptoměny, významné firemní výsledky a IPO.
-- Nevkládej běžné články bez významu pro investora/tradera.
-- Každá položka musí mít konkrétní zdrojovou URL. Nevymýšlej URL.
-- U každé zprávy vysvětli jednou krátkou větou, proč je důležitá pro trh. Nejde o investiční doporučení.
-- Pokud je zpráv málo, vrať méně položek. Nikdy nedoplňuj seznam vymyšlenými zprávami.
-- Odpověď vrať jako čistý JSON bez markdownu.`;
-
-const SCHEMA_HINT = `Pošli pole objektů v tomto přesném tvaru:
-[{"title":"...","summary":"...","why_it_matters":"...","category":"makro|akcie|komodity|ropa|geopolitika|forex|krypto|ipo|jine","importance":"normal|important|critical","published_at":"ISO-8601 datum nebo null","source_name":"...","source_url":"...","tags":["..."]}]`;
-
-function slugify(input: string) {
-  return input.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 90);
-}
-
-function parseJson(text: string) {
-  const cleaned = text.replace(/^```json\s*/i, "").replace(/^```\s*/i, "").replace(/\s*```$/i, "").trim();
-  try { return JSON.parse(cleaned); } catch {
-    const start = cleaned.indexOf("[");
-    const end = cleaned.lastIndexOf("]");
-    if (start >= 0 && end > start) return JSON.parse(cleaned.slice(start, end + 1));
-    throw new Error("AI nevrátil platný JSON.");
-  }
-}
-
-Deno.serve(async (req) => {
-  if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
-  if (req.method !== "POST") return new Response(JSON.stringify({ error: "Method not allowed" }), { status: 405, headers: { ...cors, "Content-Type": "application/json" } });
-
-  const supabaseUrl = Deno.env.get("SUPABASE_URL");
-  const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-  const perplexityKey = Deno.env.get("PERPLEXITY_API_KEY");
-  if (!supabaseUrl || !serviceRoleKey) return new Response(JSON.stringify({ error: "Supabase environment is not configured." }), { status: 500, headers: { ...cors, "Content-Type": "application/json" } });
-  if (!perplexityKey) return new Response(JSON.stringify({ error: "Chybí PERPLEXITY_API_KEY v Supabase Secrets." }), { status: 503, headers: { ...cors, "Content-Type": "application/json" } });
-
-  const supabase = createClient(supabaseUrl, serviceRoleKey);
-  const { data: state } = await supabase.from("news_refresh_state").select("last_refreshed_at,last_success_at").eq("id", true).maybeSingle();
-  if (state?.last_refreshed_at && Date.now() - new Date(state.last_refreshed_at).getTime() < 30 * 60 * 1000) {
-    return new Response(JSON.stringify({ ok: true, skipped: true, reason: "refresh_too_recent" }), { headers: { ...cors, "Content-Type": "application/json" } });
-  }
-
-  await supabase.from("news_refresh_state").update({ last_refreshed_at: new Date().toISOString(), last_error: null }).eq("id", true);
-
-  try {
-    const userPrompt = `${SCHEMA_HINT}\n\nNajdi dnešní nejdůležitější finanční a ekonomické zprávy pro českého tradera. Věnuj zvláštní pozornost ropě a případné eskalaci kolem Hormuzského průlivu, cenám energií, centrálním bankám, inflaci a sazbám, hlavním akciovým indexům, významným firemním výsledkům, kryptu, forexu a novým IPO. Vrať maximálně 12 nejdůležitějších událostí. U každé použij skutečnou URL ke zdroji. ${SCHEMA_HINT}`;
-
-    const response = await fetch("https://api.perplexity.ai/v1/sonar", {
-      method: "POST",
-      headers: { "Authorization": `Bearer ${perplexityKey}`, "Content-Type": "application/json" },
-      body: JSON.stringify({
-        model: "sonar-pro",
-        messages: [
-          { role: "system", content: SYSTEM },
-          { role: "user", content: userPrompt },
-        ],
-        search_mode: "web",
-        search_recency_filter: "day",
-        language_preference: "cs",
-      }),
-    });
-
-    if (!response.ok) throw new Error(`Perplexity API ${response.status}: ${(await response.text()).slice(0, 500)}`);
-    const payload = await response.json();
-    const answer = payload?.choices?.[0]?.message?.content;
-    if (typeof answer !== "string") throw new Error("Perplexity nevrátil textovou odpověď.");
-    const items = parseJson(answer);
-    if (!Array.isArray(items)) throw new Error("Neplatný formát novinek.");
-
-    const citations = Array.isArray(payload?.citations) ? payload.citations : [];
-    const now = new Date().toISOString();
-    const rows = items.slice(0, 12).map((item: Record<string, unknown>, index: number) => {
-      const title = String(item.title ?? "").trim();
-      const summary = String(item.summary ?? "").trim();
-      const why = String(item.why_it_matters ?? "").trim();
-      let sourceUrl = String(item.source_url ?? "").trim();
-      if (sourceUrl && !/^https?:\/\//i.test(sourceUrl)) sourceUrl = "";
-      if (!sourceUrl && citations[index]) sourceUrl = String(citations[index]);
-      let publishedAt = now;
-      if (item.published_at) {
-        const parsed = new Date(String(item.published_at));
-        if (!Number.isNaN(parsed.getTime())) publishedAt = parsed.toISOString();
-      }
-      return {
-        title,
-        slug: `${slugify(title) || `novinka-${Date.now()}-${index}`}-${Date.now()}-${index}`,
-        summary,
-        why_it_matters: why,
-        category: String(item.category ?? "jine"),
-        importance: ["normal", "important", "critical"].includes(String(item.importance)) ? String(item.importance) : "normal",
-        published_at: publishedAt,
-        source_name: String(item.source_name ?? "Web"),
-        source_url: sourceUrl,
-        tags: Array.isArray(item.tags) ? item.tags.map(String).slice(0, 8) : [],
-        updated_at: now,
-      };
-    }).filter((r) => r.title && r.summary && r.source_url);
-
-    if (!rows.length) throw new Error("Nebyla nalezena žádná ověřená novinka se zdrojem.");
-
-    for (const row of rows) {
-      const { data: existing } = await supabase.from("news_articles").select("id").eq("source_url", row.source_url).maybeSingle();
-      if (existing?.id) {
-        const { slug: _slug, ...update } = row;
-        await supabase.from("news_articles").update(update).eq("id", existing.id);
-      } else {
-        await supabase.from("news_articles").insert(row);
-      }
-    }
-
-    await supabase.from("news_articles").delete().lt("published_at", new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString());
-    await supabase.from("news_refresh_state").update({ last_success_at: now, last_error: null }).eq("id", true);
-    return new Response(JSON.stringify({ ok: true, count: rows.length }), { headers: { ...cors, "Content-Type": "application/json" } });
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    await supabase.from("news_refresh_state").update({ last_error: message }).eq("id", true);
-    return new Response(JSON.stringify({ ok: false, error: message }), { status: 500, headers: { ...cors, "Content-Type": "application/json" } });
-  }
-});
+const cors={"Access-Control-Allow-Origin":"*","Access-Control-Allow-Headers":"content-type, authorization, apikey","Access-Control-Allow-Methods":"POST, OPTIONS"};
+type Feed={q:string;cat:string;weight:number}; type Candidate={a:any;cat:string;score:number;date:Date;key:string;source:string};
+const FEEDS:Feed[]=[
+ {cat:"ipo",weight:14,q:'(IPO OR "initial public offering" OR "stock listing" OR "public debut" OR "files for IPO") (stocks OR markets)'},
+ {cat:"makro",weight:11,q:'(Federal Reserve OR Fed OR ECB OR BOE OR BOJ OR inflation OR CPI OR PCE OR payrolls OR "jobs report" OR "interest rates") (markets OR stocks OR bonds)'},
+ {cat:"ropa",weight:10,q:'(Brent OR WTI OR crude OR OPEC OR LNG OR oil) (markets OR prices OR supply OR production)'},
+ {cat:"geopolitika",weight:10,q:'(Hormuz OR Iran OR Israel OR "Middle East" OR sanctions OR war OR shipping) (oil OR markets OR stocks)'},
+ {cat:"akcie",weight:9,q:'(Nvidia OR Apple OR Microsoft OR Amazon OR Meta OR Tesla OR Alphabet OR earnings OR guidance OR revenue OR profit) (stocks OR shares)'},
+ {cat:"komodity",weight:8,q:'(gold OR silver OR copper OR platinum OR palladium OR commodities) (markets OR prices)'},
+ {cat:"forex",weight:8,q:'(dollar OR euro OR yen OR pound OR USD OR EUR OR JPY OR GBP OR FX OR forex) (markets OR currency OR central bank)'},
+ {cat:"krypto",weight:7,q:'(bitcoin OR ethereum OR crypto OR stablecoin OR ETF) (markets OR regulation OR flows)'}
+];
+const WHY:Record<string,string>={ipo:"IPO může přitáhnout kapitál do celého sektoru a měnit očekávání valuací.",makro:"Makrodata a centrální banky mění očekávání sazeb, výnosů, akcií i měn.",ropa:"Ropa ovlivňuje inflaci, náklady firem a očekávání sazeb.",geopolitika:"Geopolitické šoky mění rizikovou prémii a mohou prudce změnit ceny energií i indexů.",akcie:"Výsledky, výhled nebo zásadní firemní zprávy mohou rychle změnit valuaci.",komodity:"Zlato a průmyslové kovy reagují na sazby, dolar, růst a nabídku s poptávkou.",forex:"Forex reaguje hlavně na rozdíl sazeb, makrodata a zásahy centrálních bank.",krypto:"Krypto je citlivé na likviditu, ETF toky, regulaci a rizikový apetit."};
+const TRUSTED=["reuters.com","apnews.com","bloomberg.com","cnbc.com","ft.com","wsj.com","marketwatch.com","finance.yahoo.com","investing.com","nasdaq.com","sec.gov","nyse.com","londonstockexchange.com","euronext.com","coindesk.com","cointelegraph.com"];
+const BAD=/\b(technical analysis|chart analysis|price prediction|opinion|podcast|stock picks|best stocks to buy|top stocks to buy|live blog)\b/i;
+function api(q:string){return `https://api.gdeltproject.org/api/v2/doc/doc?query=${encodeURIComponent(q)}&mode=artlist&maxrecords=75&timespan=24h&sort=datedesc&format=json`}
+function dateOf(v?:string){const s=String(v||"");const m=s.match(/^(\d{4})(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})$/);const d=m?new Date(`${m[1]}-${m[2]}-${m[3]}T${m[4]}:${m[5]}:${m[6]}Z`):new Date(s);return Number.isNaN(d.getTime())?new Date():d}
+function norm(t:string){return t.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^a-z0-9 ]/g," ").replace(/\b(the|a|an|and|or|to|for|of|in|on|as|at|after|before|with|from|says|said|markets|market|stocks|stock|shares|share|live|update|news)\b/g," ").replace(/\s+/g," ").trim().slice(0,190)}
+function latinish(t:string){let latin=0,total=0;for(const ch of t){if(/[A-Za-zÀ-ž]/.test(ch))latin++;if(/\S/.test(ch))total++}return total===0||latin/total>0.72}
+function classify(t:string,feed:string){const x=t.toLowerCase();if(/\b(ipo|initial public offering|ipo filing|public debut|stock listing|files for ipo|shares offered)\b/.test(x))return "ipo";if(/\b(gold|silver|copper|platinum|palladium|commodity|commodities)\b/.test(x))return "komodity";if(/\b(fed|federal reserve|ecb|bank of england|boe|boj|inflation|cpi|pce|payrolls|jobs report|interest rate|rate hike|rate cut|treasury yield|bond yield)\b/.test(x))return "makro";if(/\b(bitcoin|ethereum|crypto|cryptocurrency|stablecoin|spot etf)\b/.test(x))return "krypto";if(/\b(usd|eur|jpy|gbp|dollar|euro|yen|sterling|forex|fx|exchange rate|currency intervention)\b/.test(x)&&!/\b(earnings|revenue|profit)\b/.test(x))return "forex";if(/\b(hormuz|iran|israel|middle east|war|missile|sanctions|conflict|attack|shipping blockade)\b/.test(x)&&!/\b(technical|forecast|price target)\b/.test(x))return "geopolitika";if(/\b(brent|wti|crude|opec|oil|lng|gasoline|diesel|natural gas)\b/.test(x))return "ropa";if(/\b(nvidia|apple|microsoft|amazon|meta|tesla|alphabet|amd|arm|earnings|guidance|revenue|profit|merger|acquisition)\b/.test(x))return "akcie";return feed}
+function score(t:string,cat:string,weight:number,source:string,date:Date){const x=t.toLowerCase();let n=weight*10;const age=Math.max(0,(Date.now()-date.getTime())/3600000);n+=Math.max(0,40-age*2.5);const rules:[RegExp,number][]=[[/\b(ipo|initial public offering|public debut|stock listing)\b/,38],[/\b(fed|ecb|rate hike|rate cut|cpi|inflation|payrolls|jobs report)\b/,36],[/\b(hormuz|iran|war|missile|sanctions|conflict)\b/,35],[/\b(brent|wti|crude|opec|oil)\b/,29],[/\b(gold|silver|copper)\b/,27],[/\b(usd|eur|jpy|gbp|forex|fx|exchange rate)\b/,26],[/\b(bitcoin|ethereum|crypto|stablecoin|spot etf)\b/,24],[/\b(earnings|guidance|revenue|profit|merger|acquisition)\b/,23]];for(const [r,p] of rules)if(r.test(x))n+=p;if(TRUSTED.some(d=>source.toLowerCase().includes(d)))n+=25;if(BAD.test(x))n-=50;return n}
+function importance(t:string,cat:string,sc:number){const x=t.toLowerCase();if(sc>=112)return "critical";if(/\b(fed|ecb|rate hike|rate cut|cpi|inflation|payrolls|jobs report|hormuz|iran|war|opec|brent|wti|oil.*100|100.*oil)\b/.test(x))return "critical";if(cat==="ipo"||cat==="forex"||/\b(earnings|guidance|bitcoin|ethereum|sanction|gold|silver|copper)\b/.test(x))return "important";return sc>=68?"important":"normal"}
+async function get(q:string){try{const r=await fetch(api(q),{headers:{"User-Agent":"TradingAcademyCZ/5.0"}});if(!r.ok)return[];const j=await r.json();return Array.isArray(j.articles)?j.articles:[]}catch{return[]}}
+async function translate(text:string){try{const r=await fetch(`https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=cs&hl=cs&dt=t&dj=1&q=${encodeURIComponent(text.slice(0,1000))}`,{headers:{"User-Agent":"TradingAcademyCZ/5.0"}});if(!r.ok)return text;const j=await r.json();return (j?.sentences??[]).map((x:any)=>x.trans||"").join("").trim()||text}catch{return text}}
+Deno.serve(async(req)=>{if(req.method==="OPTIONS")return new Response("ok",{headers:cors});if(req.method!=="POST")return new Response(JSON.stringify({error:"Method not allowed"}),{status:405,headers:{...cors,"Content-Type":"application/json"}});const url=Deno.env.get("SUPABASE_URL");let key=Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")||"";if(!key){const raw=Deno.env.get("SUPABASE_SECRET_KEYS");if(raw){try{const m=JSON.parse(raw);key=m.default||Object.values(m)[0]||""}catch{}}}if(!url||!key)return new Response(JSON.stringify({error:"Supabase server credentials missing"}),{status:500,headers:{...cors,"Content-Type":"application/json"}});const db=createClient(url,key);const now=new Date().toISOString();try{const sets=await Promise.all(FEEDS.map(f=>get(`${f.q} -sourcelang:chinese -sourcelang:russian -sourcelang:arabic`)));const byUrl=new Map<string,Candidate>();sets.forEach((arr,i)=>arr.forEach((a:any)=>{const title=String(a?.title||"").trim(),sourceUrl=String(a?.url||"").trim();if(!title||!sourceUrl||BAD.test(title)||!latinish(title))return;const f=FEEDS[i],cat=classify(title,f.cat),date=dateOf(a.seendate),source=String(a.domain||a.sourcecountry||"Zdroj"),sc=score(title,cat,f.weight,source,date),c={a,cat,score:sc,date,key:norm(title),source},old=byUrl.get(sourceUrl);if(!old||c.score>old.score)byUrl.set(sourceUrl,c)}));const byEvent=new Map<string,Candidate>();for(const c of byUrl.values()){const old=byEvent.get(c.key);if(!old||c.score>old.score)byEvent.set(c.key,c)}const all=[...byEvent.values()].sort((a,b)=>b.score-a.score||b.date.getTime()-a.date.getTime());const quota:Record<string,number>={makro:3,akcie:3,ropa:3,komodity:3,geopolitika:3,forex:3,krypto:2,ipo:3};const chosen:Candidate[]=[];const counts:Record<string,number>={};for(const cat of Object.keys(quota)){const hit=all.find(c=>c.cat===cat);if(hit){chosen.push(hit);counts[cat]=1}}for(const c of all){if(chosen.includes(c))continue;const max=quota[c.cat]??2;if((counts[c.cat]||0)>=max)continue;chosen.push(c);counts[c.cat]=(counts[c.cat]||0)+1;if(chosen.length>=24)break}if(!chosen.length)throw new Error("GDELT nevrátil žádné vhodné finanční články.");const rows=await Promise.all(chosen.slice(0,24).map(async(c,i)=>{const title=await translate(String(c.a.title));const imp=importance(String(c.a.title),c.cat,c.score);return{title:title.slice(0,300),slug:`news-${Date.now()}-${i}`,summary:`${title.slice(0,420)}.`,why_it_matters:WHY[c.cat],category:c.cat,importance:imp,published_at:c.date.toISOString(),source_name:String(c.a.domain||c.a.sourcecountry||"Zdroj").slice(0,120),source_url:String(c.a.url),tags:[c.cat,"live","trhy"],updated_at:now}}));await db.from("news_articles").delete().eq("importance","normal");for(const r of rows){const {data:e}=await db.from("news_articles").select("id").eq("source_url",r.source_url).maybeSingle();if(e?.id)await db.from("news_articles").update({title:r.title,summary:r.summary,why_it_matters:r.why_it_matters,category:r.category,importance:r.importance,published_at:r.published_at,source_name:r.source_name,tags:r.tags,updated_at:now}).eq("id",e.id);else await db.from("news_articles").insert(r)}await db.from("news_articles").delete().in("importance",["important","critical"]).lt("published_at",new Date(Date.now()-365*24*60*60*1000).toISOString());await db.from("news_refresh_state").upsert({id:true,last_refreshed_at:now,last_success_at:now,last_error:null,updated_at:now});return new Response(JSON.stringify({ok:true,count:rows.length,refreshed_at:now,provider:"GDELT curated",categories:counts}),{headers:{...cors,"Content-Type":"application/json"}})}catch(e){const msg=e instanceof Error?e.message:String(e);await db.from("news_refresh_state").upsert({id:true,last_refreshed_at:now,last_error:msg,updated_at:now});return new Response(JSON.stringify({ok:false,error:msg}),{status:500,headers:{...cors,"Content-Type":"application/json"}})}});
