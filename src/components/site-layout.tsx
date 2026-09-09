@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from "react";
 import { Link, useNavigate } from "@tanstack/react-router";
-import { Menu, X, LineChart, LogOut, LayoutDashboard, Shield, FlaskConical } from "lucide-react";
+import { Menu, X, LineChart, LogOut, LayoutDashboard, Shield } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useIsAdmin, useSession } from "@/lib/auth";
