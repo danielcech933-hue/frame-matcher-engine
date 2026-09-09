@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { createClient } from "@supabase/supabase-js";
@@ -75,6 +75,14 @@ function formatDate(date: string) {
   }).format(new Date(date));
 }
 
+function cleanSearchTerm(value: string) {
+  return value
+    .trim()
+    .replace(/[%,]/g, " ")
+    .replace(/\s+/g, " ")
+    .slice(0, 100);
+}
+
 type NewsItem = {
   id: string;
   title: string;
@@ -113,9 +121,7 @@ function NewsCard({ item, archive = false }: { item: NewsItem; archive?: boolean
         <h2 className="mt-4 text-lg font-semibold leading-snug">{item.title}</h2>
         <p className="mt-3 text-sm leading-relaxed text-muted-foreground">{item.summary}</p>
         <div className="mt-4 rounded-lg border border-primary/20 bg-primary/5 p-3">
-          <p className="text-xs font-semibold uppercase tracking-wide text-primary">
-            Proč to hýbe trhem
-          </p>
+          <p className="text-xs font-semibold uppercase tracking-wide text-primary">Proč to hýbe trhem</p>
           <p className="mt-1 text-sm leading-relaxed">{item.why_it_matters}</p>
         </div>
         <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -146,7 +152,8 @@ function NewsCard({ item, archive = false }: { item: NewsItem; archive?: boolean
 }
 
 function NewsPage() {
-  const [q, setQ] = useState("");
+  const [searchInput, setSearchInput] = useState("");
+  const [search, setSearch] = useState("");
   const [category, setCategory] = useState("vse");
   const [view, setView] = useState<"current" | "archive">("current");
   const [refreshing, setRefreshing] = useState(false);
@@ -154,35 +161,63 @@ function NewsPage() {
   const fetchColumns =
     "id,title,summary,why_it_matters,category,importance,published_at,source_name,source_url,tags,image_url";
 
+  useEffect(() => {
+    const timer = window.setTimeout(() => setSearch(cleanSearchTerm(searchInput)), 300);
+    return () => window.clearTimeout(timer);
+  }, [searchInput]);
+
   const news = useQuery({
-    queryKey: ["news-articles-live"],
+    queryKey: ["news-keyword-search", "current", search, category],
     staleTime: 30_000,
     refetchInterval: 600_000,
     refetchIntervalInBackground: true,
     queryFn: async () => {
-      const { data, error } = await newsSupabase
+      let query = newsSupabase
         .from("news_articles")
         .select(fetchColumns)
-        .order("published_at", { ascending: false })
-        .limit(50);
+        .order("published_at", { ascending: false });
+
+      if (category !== "vse") query = query.eq("category", category);
+
+      if (search) {
+        const pattern = `%${search}%`;
+        query = query.or(
+          `title.ilike.${pattern},summary.ilike.${pattern},why_it_matters.ilike.${pattern},source_name.ilike.${pattern}`,
+        );
+        query = query.limit(100);
+      } else {
+        query = query.limit(50);
+      }
+
+      const { data, error } = await query;
       if (error) throw error;
       return data as NewsItem[];
     },
   });
 
   const archive = useQuery({
-    queryKey: ["news-archive"],
+    queryKey: ["news-keyword-search", "archive", search, category],
     staleTime: 60_000,
     refetchInterval: 600_000,
     refetchIntervalInBackground: true,
-    enabled: view === "archive" || !q,
+    enabled: view === "archive",
     queryFn: async () => {
-      const { data, error } = await newsSupabase
+      let query = newsSupabase
         .from("news_articles")
         .select(fetchColumns)
         .in("importance", ["important", "critical"])
-        .order("published_at", { ascending: false })
-        .limit(500);
+        .order("published_at", { ascending: false });
+
+      if (category !== "vse") query = query.eq("category", category);
+
+      if (search) {
+        const pattern = `%${search}%`;
+        query = query.or(
+          `title.ilike.${pattern},summary.ilike.${pattern},why_it_matters.ilike.${pattern},source_name.ilike.${pattern}`,
+        );
+      }
+
+      const { data, error } = await query.limit(500);
       if (error) throw error;
       return data as NewsItem[];
     },
@@ -204,18 +239,7 @@ function NewsPage() {
     },
   });
 
-  const filterItems = (items: NewsItem[]) => {
-    const query = q.trim().toLowerCase();
-    return items.filter((item) => {
-      const categoryOk = category === "vse" || item.category === category;
-      const text = `${item.title} ${item.summary} ${item.why_it_matters} ${(item.tags ?? []).join(" ")}`.toLowerCase();
-      return categoryOk && (!query || text.includes(query));
-    });
-  };
-
-  const filteredCurrent = useMemo(() => filterItems(news.data ?? []), [news.data, q, category]);
-  const filteredArchive = useMemo(() => filterItems(archive.data ?? []), [archive.data, q, category]);
-  const items = view === "current" ? filteredCurrent : filteredArchive;
+  const items = view === "current" ? news.data ?? [] : archive.data ?? [];
   const loading = view === "current" ? news.isLoading : archive.isLoading;
   const error = view === "current" ? news.isError : archive.isError;
 
@@ -234,7 +258,7 @@ function NewsPage() {
       const data = await response.json().catch(() => ({}));
       if (!response.ok || data?.error) throw new Error(data?.error || `Aktualizace selhala (${response.status})`);
       await Promise.all([news.refetch(), archive.refetch(), state.refetch()]);
-      toast.success(data?.skipped ? "Novinky jsou už aktuální." : `Aktualizováno: ${data?.count ?? 0} zpráv.`);
+      toast.success(`Aktualizováno: ${data?.count ?? 0} zpráv.`);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Aktualizace se nepodařila.");
       await Promise.all([news.refetch(), archive.refetch(), state.refetch()]);
@@ -263,20 +287,10 @@ function NewsPage() {
         </div>
 
         <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-          <Button
-            size="sm"
-            variant={view === "current" ? "default" : "secondary"}
-            onClick={() => setView("current")}
-            className="justify-center sm:flex-1"
-          >
+          <Button size="sm" variant={view === "current" ? "default" : "secondary"} onClick={() => setView("current")} className="justify-center sm:flex-1">
             <Newspaper className="size-4" /> Aktuální zprávy
           </Button>
-          <Button
-            size="sm"
-            variant={view === "archive" ? "default" : "secondary"}
-            onClick={() => setView("archive")}
-            className="justify-center sm:flex-1"
-          >
+          <Button size="sm" variant={view === "archive" ? "default" : "secondary"} onClick={() => setView("archive")} className="justify-center sm:flex-1">
             <Archive className="size-4" /> Archiv klíčových událostí
           </Button>
         </div>
@@ -285,32 +299,32 @@ function NewsPage() {
           <div className="relative flex-1">
             <Search className="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
             <Input
-              value={q}
-              onChange={(e) => setQ(e.target.value)}
-              placeholder={view === "archive" ? "Hledat v archivu…" : "Hledat novinky…"}
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
+              placeholder="Hledat např. Anthropic, Fed, Nvidia, IPO…"
               className="pl-9"
             />
           </div>
           <div className="flex flex-wrap gap-2">
             {FILTERS.map(([value, label]) => (
-              <Button
-                key={value}
-                size="sm"
-                variant={category === value ? "default" : "secondary"}
-                onClick={() => setCategory(value)}
-              >
+              <Button key={value} size="sm" variant={category === value ? "default" : "secondary"} onClick={() => setCategory(value)}>
                 {label}
               </Button>
             ))}
           </div>
         </div>
 
-        <div className="mt-5 flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-muted-foreground">
+        <div className="mt-3 min-h-5 text-xs text-muted-foreground">
+          {searchInput.trim() !== search && <span>Hledám…</span>}
+          {search && searchInput.trim() === search && (
+            <span>Výsledky pro: <strong className="text-foreground">{search}</strong></span>
+          )}
+        </div>
+
+        <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-muted-foreground">
           <span className="inline-flex items-center gap-2">
             <Clock3 className="size-3.5" />
-            {state.data?.last_success_at
-              ? `Feed aktualizován před ${timeAgo(state.data.last_success_at)}`
-              : "První aktualizace probíhá…"}
+            {state.data?.last_success_at ? `Feed aktualizován před ${timeAgo(state.data.last_success_at)}` : "První aktualizace probíhá…"}
           </span>
           <span className="inline-flex items-center gap-2 text-primary">
             <RefreshCw className="size-3.5" /> Automatická aktualizace každých 10 minut
@@ -346,11 +360,12 @@ function NewsPage() {
         ) : items.length === 0 ? (
           <div className="surface mt-10 p-8 text-center">
             {view === "archive" ? <Archive className="mx-auto size-7 text-primary" /> : <Newspaper className="mx-auto size-7 text-primary" />}
-            <h2 className="mt-4 font-display text-xl font-semibold">{view === "archive" ? "Archiv zatím nemá záznam pro tento filtr" : "Žádné zprávy pro tento filtr"}</h2>
+            <h2 className="mt-4 font-display text-xl font-semibold">
+              {search ? `Žádné výsledky pro „${search}"` : view === "archive" ? "Archiv zatím nemá záznam pro tento filtr" : "Žádné zprávy pro tento filtr"}
+            </h2>
             <p className="mt-2 text-sm text-muted-foreground">
-              {view === "archive" ? "Jakmile se objeví další událost s vysokým dopadem, zůstane v archivu." : "Zkus Vše nebo spusť ruční aktualizaci."}
+              {search ? "Zkus jiný název společnosti, ticker nebo klíčové slovo." : view === "archive" ? "Jakmile se objeví další událost s vysokým dopadem, zůstane v archivu." : "Zkus Vše nebo spusť ruční aktualizaci."}
             </p>
-            {view === "current" && <Button className="mt-5" onClick={refreshNow} disabled={refreshing}>Načíst aktuální zprávy</Button>}
           </div>
         ) : (
           <div className="mt-8 grid gap-5 lg:grid-cols-2">
