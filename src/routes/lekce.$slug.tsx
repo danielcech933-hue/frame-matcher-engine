@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Bookmark, BookmarkCheck, CheckCircle2, Clock, ArrowLeft, ArrowRight } from "lucide-react";
+import { Bookmark, BookmarkCheck, CheckCircle2, Clock, ArrowLeft, ArrowRight, RotateCcw } from "lucide-react";
 import { toast } from "sonner";
 import { SiteLayout } from "@/components/site-layout";
 import { Button } from "@/components/ui/button";
@@ -154,12 +154,24 @@ function LessonPage() {
 
   const [answers, setAnswers] = useState<Record<string, number>>({});
   const [submitted, setSubmitted] = useState(false);
+
+  // Každá nová lekce musí začít s čistým kvízem.
+  useEffect(() => {
+    setAnswers({});
+    setSubmitted(false);
+  }, [slug]);
+
   const questions = quiz.data ?? [];
   const correct = questions.filter((q) => answers[q.id] === q.correct_index).length;
   const orderedLessons = lessons.data ?? [];
   const currentIndex = orderedLessons.findIndex((l) => l.slug === slug);
   const previousLesson = currentIndex > 0 ? orderedLessons[currentIndex - 1] : undefined;
   const nextLesson = currentIndex >= 0 ? orderedLessons[currentIndex + 1] : undefined;
+
+  const resetQuiz = () => {
+    setAnswers({});
+    setSubmitted(false);
+  };
 
   if (lesson.isLoading) {
     return (
@@ -288,26 +300,31 @@ function LessonPage() {
                 </div>
 
                 <div className="mt-6 flex flex-col gap-3 border-t border-border/70 pt-6 sm:flex-row sm:items-center sm:justify-between">
-                  <Button asChild variant="secondary">
-                    <Link to="/kurzy">
-                      <ArrowLeft className="size-4" /> Zpět na učební cestu
-                    </Link>
+                  <Button variant="outline" onClick={resetQuiz}>
+                    <RotateCcw className="size-4" /> Zkusit kvíz znovu
                   </Button>
-                  {nextLesson ? (
-                    <Button asChild>
-                      <Link to="/lekce/$slug" params={{ slug: nextLesson.slug }}>
-                        Pokračovat na další lekci
-                        <ArrowRight className="size-4" />
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                    <Button asChild variant="secondary">
+                      <Link to="/kurzy">
+                        <ArrowLeft className="size-4" /> Zpět na učební cestu
                       </Link>
                     </Button>
-                  ) : (
-                    <Button asChild>
-                      <Link to="/prehled">
-                        Zobrazit můj pokrok
-                        <ArrowRight className="size-4" />
-                      </Link>
-                    </Button>
-                  )}
+                    {nextLesson ? (
+                      <Button asChild>
+                        <Link to="/lekce/$slug" params={{ slug: nextLesson.slug }}>
+                          Pokračovat na další lekci
+                          <ArrowRight className="size-4" />
+                        </Link>
+                      </Button>
+                    ) : (
+                      <Button asChild>
+                        <Link to="/prehled">
+                          Zobrazit můj pokrok
+                          <ArrowRight className="size-4" />
+                        </Link>
+                      </Button>
+                    )}
+                  </div>
                 </div>
               </>
             ) : (
