@@ -4,15 +4,15 @@ import { CategoryPage } from "./instrumenty";
 export const Route = createFileRoute("/styly")({
   head: () => ({
     meta: [
-      { title: "Obchodní styly — scalping, intraday, swing, investování" },
+      { title: "Obchodní styly — scalping, day trading, swing trading, investování" },
       {
         name: "description",
         content:
-          "Porovnání obchodních stylů podle časového horizontu a nároků: scalping, intradenní obchodování, swing trading a dlouhodobé investování.",
+          "Přehled obchodních stylů od dlouhodobého investování po scalping. Porovnejte čas, tempo, riziko a nároky jednotlivých přístupů.",
       },
       { property: "og:title", content: "Obchodní styly — Trading Academy CZ" },
-      { property: "og:description", content: "Který styl obchodování sedí vaší povaze a času." },
+      { property: "og:description", content: "Který obchodní styl sedí vašemu času, povaze a zkušenostem?" },
     ],
   }),
-  component: () => <CategoryPage kind="styl" title="Obchodní styly" />,
+  component: () => <CategoryPage kind="style" title="Obchodní styly" />,
 });
