@@ -1,0 +1,19 @@
+INSERT INTO public.news_articles (slug, title, summary, why_it_matters, category, importance, published_at, source_name, source_url, tags)
+VALUES
+('ropa-nad-100-a-rostou-obavy-o-dodavky', 'Ropa překonala 100 USD za barel, akcie klesají kvůli eskalaci na Blízkém východě', 'Brent vystoupal nad 100 USD za barel a globální akcie oslabily. Trh řeší riziko omezení dodávek energie a dalšího inflačního tlaku.', 'Vyšší cena energie může prodloužit inflační tlak a zkomplikovat očekávání sazeb centrálních bank.', 'ropa', 'critical', '2026-09-09T10:00:00Z', 'Reuters', 'https://www.reuters.com/world/china/global-markets-global-markets-2026-09-09/', ARRAY['ropa','energie','Hormuz','akcie','inflace']),
+('hormuz-nejasnost-zvysuje-rizikovou-premii', 'Nejasnosti kolem Hormuzského průlivu drží vysokou rizikovou prémii ropy', 'Data o skutečných tocích tankerů přes Hormuz se výrazně rozcházejí, což zvyšuje nejistotu ohledně nabídky ropy.', 'Jakékoli další omezení průchodu klíčovou energetickou trasou může zvýšit volatilitu ropy a náklady na energie.', 'geopolitika', 'critical', '2026-09-09T10:00:00Z', 'Reuters', 'https://www.reuters.com/commentary/reuters-open-interest/oil-prices-fly-blind-hormuz-enigma-deepens-2026-09-09/', ARRAY['Hormuz','ropa','tankery','geopolitika']),
+('wall-street-ceka-nizsi-otevreni', 'Wall Street míří níže, investoři sledují ropu a americkou inflaci', 'Futures na hlavní americké indexy oslabují, zatímco ropa se drží kolem 100 USD. Investoři čekají na důležitá inflační data.', 'Kombinace dražší ropy a vyšších výnosů dluhopisů zvyšuje tlak na valuace akcií a citlivost trhu na makrodata.', 'akcie', 'important', '2026-09-09T12:00:00Z', 'Reuters', 'https://www.reuters.com/business/wall-st-futures-muted-oil-tops-100-first-time-since-july-2026-09-09/', ARRAY['S&P500','Nasdaq','Fed','inflace','ropa']),
+('enflame-912-milionu-ipo', 'Čínský AI chipmaker Enflame vstupuje na burzu s IPO za 912 milionů USD', 'Enflame Technology podpořená Tencentem má debutovat na šanghajském STAR Marketu 11. září po nabídce za 6,12 miliardy jüanů.', 'IPO ukazuje pokračující zájem o AI čipy, ale také vysoké ocenění firmy, která zatím vykazuje ztrátu.', 'ipo', 'important', '2026-09-09T08:00:00Z', 'Reuters', 'https://www.reuters.com/world/asia-pacific/tencent-backed-enflame-debut-shanghai-friday-912-million-ipo-2026-09-09/', ARRAY['IPO','AI','čipy','Čína','Tencent']),
+('ether-konsoliduje-po-rustu', 'Ether po silném růstu konsoliduje; trh čeká na americkou inflaci', 'Ether po výrazném růstu konsoliduje. Další směr mohou ovlivnit data o inflaci v USA a výnosy dluhopisů.', 'Vyšší americké výnosy bývají pro krypto protivětrem, takže inflace může rychle změnit očekávání sazeb i směr ETH.', 'krypto', 'important', '2026-09-09T08:00:00Z', 'Reuters', 'https://www.reuters.com/markets/global-markets-technicals-2026-09-09/', ARRAY['Ethereum','ETH','krypto','inflace','výnosy']),
+('ceny-prepravy-pod-hormuzem-rostou', 'Přeprava ropy přes Hormuz výrazně zdražila', 'Válečné riziko a pojištění zvyšují náklady na přepravu ropy přes Hormuz a část přepravců volí delší trasy.', 'Vyšší přepravní náklady mohou dál zdražovat energie a zhoršovat dostupnost tankerů i logistiku dodavatelského řetězce.', 'komodity', 'important', '2026-09-09T09:00:00Z', 'Reuters', 'https://www.reuters.com/world/middle-east/oil-vessel-transit-costs-through-hormuz-escalated-after-iran-war-enoc-exec-says-2026-09-09/', ARRAY['Hormuz','tankery','pojištění','ropa','logistika'])
+ON CONFLICT (slug) DO UPDATE SET
+  title = EXCLUDED.title,
+  summary = EXCLUDED.summary,
+  why_it_matters = EXCLUDED.why_it_matters,
+  category = EXCLUDED.category,
+  importance = EXCLUDED.importance,
+  published_at = EXCLUDED.published_at,
+  source_name = EXCLUDED.source_name,
+  source_url = EXCLUDED.source_url,
+  tags = EXCLUDED.tags,
+  updated_at = now();
