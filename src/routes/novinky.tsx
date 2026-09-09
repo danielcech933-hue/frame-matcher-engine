@@ -1,13 +1,13 @@
 import { useMemo, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
+import { createClient } from "@supabase/supabase-js";
 import { AlertTriangle, ArrowUpRight, Clock3, Newspaper, RefreshCw, Search } from "lucide-react";
 import { toast } from "sonner";
 import { SiteLayout } from "@/components/site-layout";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { supabase } from "@/integrations/supabase/client";
 
 export const Route = createFileRoute("/novinky")({
   head: () => ({
@@ -18,6 +18,10 @@ export const Route = createFileRoute("/novinky")({
   }),
   component: NewsPage,
 });
+
+const NEWS_SUPABASE_URL = "https://ntzjirsejfvgvuhmbqvt.supabase.co";
+const NEWS_SUPABASE_KEY = "sb_publishable_V0KDBHBggGqhqKqSSB-JPw_iJyhYu9H";
+const newsSupabase = createClient(NEWS_SUPABASE_URL, NEWS_SUPABASE_KEY);
 
 const FILTERS = [
   ["vse", "Vše"], ["makro", "Makro"], ["akcie", "Akcie"], ["ropa", "Ropa"], ["komodity", "Komodity"],
@@ -39,16 +43,17 @@ function NewsPage() {
   const [q, setQ] = useState("");
   const [category, setCategory] = useState("vse");
   const [refreshing, setRefreshing] = useState(false);
-  const db = supabase as any;
 
   const news = useQuery({
-    queryKey: ["news-articles"],
+    queryKey: ["news-articles-live"],
     refetchInterval: 60_000,
     refetchIntervalInBackground: true,
     queryFn: async () => {
-      const { data, error } = await db.from("news_articles")
+      const { data, error } = await newsSupabase
+        .from("news_articles")
         .select("id,title,summary,why_it_matters,category,importance,published_at,source_name,source_url,tags,image_url")
-        .order("published_at", { ascending: false }).limit(50);
+        .order("published_at", { ascending: false })
+        .limit(50);
       if (error) throw error;
       return data as Array<{
         id: string; title: string; summary: string; why_it_matters: string; category: string; importance: string;
@@ -58,13 +63,17 @@ function NewsPage() {
   });
 
   const state = useQuery({
-    queryKey: ["news-refresh-state"],
+    queryKey: ["news-refresh-state-live"],
     refetchInterval: 60_000,
     refetchIntervalInBackground: true,
     queryFn: async () => {
-      const { data, error } = await db.from("news_refresh_state").select("last_success_at").eq("id", true).maybeSingle();
+      const { data, error } = await newsSupabase
+        .from("news_refresh_state")
+        .select("last_success_at,last_error")
+        .eq("id", true)
+        .maybeSingle();
       if (error) throw error;
-      return data as { last_success_at: string | null } | null;
+      return data as { last_success_at: string | null; last_error: string | null } | null;
     },
   });
 
@@ -80,13 +89,18 @@ function NewsPage() {
   async function refreshNow() {
     setRefreshing(true);
     try {
-      const { data, error } = await supabase.functions.invoke("refresh-news", { body: { trigger: "manual" } });
-      if (error) throw error;
-      if (data?.error) throw new Error(data.error);
+      const response = await fetch(`${NEWS_SUPABASE_URL}/functions/v1/refresh-news`, {
+        method: "POST",
+        headers: { apikey: NEWS_SUPABASE_KEY, Authorization: `Bearer ${NEWS_SUPABASE_KEY}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ trigger: "manual" }),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok || data?.error) throw new Error(data?.error || `Aktualizace selhala (${response.status})`);
       await Promise.all([news.refetch(), state.refetch()]);
-      toast.success(data?.skipped ? "Novinky jsou už aktuální." : "Novinky byly aktualizovány.");
+      toast.success(data?.skipped ? "Novinky jsou už aktuální." : `Aktualizováno: ${data?.count ?? 0} zpráv.`);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Aktualizace se nepodařila.");
+      await Promise.all([news.refetch(), state.refetch()]);
     } finally { setRefreshing(false); }
   }
 
@@ -97,7 +111,7 @@ function NewsPage() {
           <div>
             <Badge variant="secondary">Live market brief</Badge>
             <h1 className="mt-3 font-display text-3xl font-bold md:text-4xl">Novinky & trh</h1>
-            <p className="mt-2 max-w-2xl text-muted-foreground">Automatický výběr nejdůležitějších událostí z webu, stručně česky a s vysvětlením, proč jsou důležité pro trh.</p>
+            <p className="mt-2 max-w-2xl text-muted-foreground">Důležité tržní události z posledních hodin, česky shrnuté s vysvětlením dopadu na trh.</p>
           </div>
           <Button variant="secondary" onClick={refreshNow} disabled={refreshing}>
             <RefreshCw className={refreshing ? "size-4 animate-spin" : "size-4"} />
@@ -115,24 +129,33 @@ function NewsPage() {
           </div>
         </div>
 
-        <div className="mt-5 flex items-center gap-2 text-xs text-muted-foreground">
-          <Clock3 className="size-3.5" />
-          {state.data?.last_success_at ? `Poslední úspěšná aktualizace před ${timeAgo(state.data.last_success_at)}` : "Automatická aktualizace čeká na první úspěšný běh"}
+        <div className="mt-5 flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-muted-foreground">
+          <span className="inline-flex items-center gap-2"><Clock3 className="size-3.5" />{state.data?.last_success_at ? `Aktualizováno před ${timeAgo(state.data.last_success_at)}` : "První AI aktualizace probíhá…"}</span>
+          {state.data?.last_error && <span className="text-destructive">Poslední chyba: {state.data.last_error}</span>}
         </div>
 
         {news.isLoading ? (
-          <p className="mt-12 text-muted-foreground">Načítám zprávy…</p>
+          <div className="mt-10 grid gap-5 lg:grid-cols-2">
+            {[1,2,3,4].map((i) => <div key={i} className="surface h-56 animate-pulse rounded-xl" />)}
+          </div>
+        ) : news.isError ? (
+          <div className="surface mt-10 p-8 text-center">
+            <AlertTriangle className="mx-auto size-7 text-primary" />
+            <h2 className="mt-4 font-display text-xl font-semibold">Nepodařilo se načíst live feed</h2>
+            <p className="mt-2 text-sm text-muted-foreground">Zkontroluj připojení databáze a zkus aktualizaci znovu.</p>
+            <Button className="mt-5" onClick={refreshNow} disabled={refreshing}>Načíst aktuální zprávy</Button>
+          </div>
         ) : filtered.length === 0 ? (
           <div className="surface mt-10 p-8 text-center">
             <Newspaper className="mx-auto size-7 text-primary" />
-            <h2 className="mt-4 font-display text-xl font-semibold">Zatím tu nic není</h2>
-            <p className="mt-2 text-sm text-muted-foreground">Spusť aktualizaci nebo změň filtr. Zprávy se ukládají až po ověření zdroje.</p>
+            <h2 className="mt-4 font-display text-xl font-semibold">Žádné zprávy pro tento filtr</h2>
+            <p className="mt-2 text-sm text-muted-foreground">Zkus Vše nebo spusť ruční aktualizaci.</p>
             <Button className="mt-5" onClick={refreshNow} disabled={refreshing}>Načíst aktuální zprávy</Button>
           </div>
         ) : (
           <div className="mt-8 grid gap-5 lg:grid-cols-2">
             {filtered.map((item) => (
-              <article key={item.id} className="surface card-hover overflow-hidden">
+              <article key={item.id} className={`surface card-hover overflow-hidden ${item.importance === "critical" ? "ring-1 ring-primary/50" : ""}`}>
                 {item.image_url && <img src={item.image_url} alt="" className="h-44 w-full object-cover" loading="lazy" />}
                 <div className="p-5">
                   <div className="flex flex-wrap items-center gap-2">
@@ -158,7 +181,7 @@ function NewsPage() {
 
         <div className="mt-10 flex gap-3 rounded-xl border border-border/70 bg-secondary/30 p-4 text-xs leading-relaxed text-muted-foreground">
           <AlertTriangle className="mt-0.5 size-4 shrink-0 text-primary" />
-          <p>Novinky jsou automaticky vyhledávané a shrnuté pro vzdělávací účely. Nejde o investiční doporučení. Před obchodním rozhodnutím vždy otevřete původní zdroj.</p>
+          <p>Novinky jsou automaticky vyhledávané a shrnuté pro vzdělávací účely. Nejde o investiční doporučení. Před obchodním rozhodnutím vždy otevři původní zdroj.</p>
         </div>
       </div>
     </SiteLayout>
