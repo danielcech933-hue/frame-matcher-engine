@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { createFileRoute, Link, redirect } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -239,10 +239,9 @@ function Overview() {
   const [objection, setObjection] = useState("");
   const [callStage, setCallStage] = useState("objection");
   const [analysis, setAnalysis] = useState(() => analyseObjection("", "objection"));
-  const [selectedMonth, setSelectedMonth] = useState(0);
   const [savingMonth, setSavingMonth] = useState<string | null>(null);
 
-  useMemo(() => {
+  useEffect(() => {
     if (goals.data && !goalReady) {
       setTarget(String(goals.data.monthly_target));
       setGoalReady(true);
@@ -292,7 +291,10 @@ function Overview() {
       setSavingMonth(month.month_start);
       const { error } = await db
         .from("sales_goal_months")
-        .update({ actual_closes: Math.max(0, Math.min(100000, actual)), opportunities: Math.max(0, Math.min(1000000, opportunities)) })
+        .update({
+          actual_closes: Math.max(0, Math.min(100000, actual)),
+          opportunities: Math.max(0, Math.min(1000000, opportunities)),
+        })
         .eq("id", month.id)
         .eq("user_id", userId);
       if (error) throw error;
@@ -303,9 +305,7 @@ function Overview() {
     onSettled: () => setSavingMonth(null),
   });
 
-  const runAnalysis = () => {
-    setAnalysis(analyseObjection(objection, callStage));
-  };
+  const runAnalysis = () => setAnalysis(analyseObjection(objection, callStage));
 
   const saveArgumentation = useMutation({
     mutationFn: async () => {
@@ -340,15 +340,9 @@ function Overview() {
           <div>
             <Badge variant="secondary">Můj účet</Badge>
             <h1 className="mt-3 font-display text-3xl font-bold md:text-4xl">{profile.data?.display_name ?? "Trader"}, váš pracovní dashboard</h1>
-            <p className="mt-2 max-w-3xl text-muted-foreground">
-              Sledujte měsíční Close, počet příležitostí a používejte AI Helper pro rozbory momentů, kde vám spadl hovor.
-            </p>
+            <p className="mt-2 max-w-3xl text-muted-foreground">Sledujte měsíční Close, počet příležitostí a používejte AI Helper pro rozbory momentů, kde vám spadl hovor.</p>
           </div>
-          {nextLesson && (
-            <Link to="/lekce/$slug" params={{ slug: nextLesson.slug }} className="inline-flex items-center gap-2 text-sm font-medium text-primary hover:underline">
-              Pokračovat ve studiu <ArrowRight className="size-4" />
-            </Link>
-          )}
+          {nextLesson && <Link to="/lekce/$slug" params={{ slug: nextLesson.slug }} className="inline-flex items-center gap-2 text-sm font-medium text-primary hover:underline">Pokračovat ve studiu <ArrowRight className="size-4" /></Link>}
         </div>
 
         <div className="mt-8 grid gap-4 md:grid-cols-4">
@@ -360,10 +354,7 @@ function Overview() {
 
         <section className="surface mt-6 p-6">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-            <div>
-              <div className="flex items-center gap-2"><Target className="size-5 text-primary" /><h2 className="font-display text-xl font-semibold">Měsíční cíl Close</h2></div>
-              <p className="mt-1 text-sm text-muted-foreground">Nastav si, kolik Close chceš měsíčně. Tabulka se automaticky připraví na 12 měsíců.</p>
-            </div>
+            <div><div className="flex items-center gap-2"><Target className="size-5 text-primary" /><h2 className="font-display text-xl font-semibold">Měsíční cíl Close</h2></div><p className="mt-1 text-sm text-muted-foreground">Nastav si, kolik Close chceš měsíčně. Tabulka se automaticky připraví na 12 měsíců.</p></div>
             <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
               <div><Label htmlFor="monthly-target">Cíl Close / měsíc</Label><Input id="monthly-target" className="mt-2 w-full sm:w-40" type="number" min="0" value={target} onChange={(e) => setTarget(e.target.value)} /></div>
               <Button onClick={() => saveGoal.mutate()} disabled={saveGoal.isPending}><Save className="size-4" /> {saveGoal.isPending ? "Ukládám…" : "Uložit cíl"}</Button>
@@ -380,13 +371,13 @@ function Overview() {
 
         <section className="surface mt-6 p-6">
           <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
-            <div><div className="flex items-center gap-2"><BarChart3 className="size-5 text-primary" /><h2 className="font-display text-xl font-semibold">Automatická tabulka výkonu</h2></div><p className="mt-1 text-sm text-muted-foreground">Pro každý měsíc si doplníš příležitosti a skutečné Close. Výkon se přepočítá okamžitě.</p></div>
+            <div><div className="flex items-center gap-2"><BarChart3 className="size-5 text-primary" /><h2 className="font-display text-xl font-semibold">Automatická tabulka výkonu</h2></div><p className="mt-1 text-sm text-muted-foreground">Pro každý měsíc doplň příležitosti a skutečné Close. Výkon se přepočítá okamžitě.</p></div>
             <Badge variant="outline">12 měsíců</Badge>
           </div>
           <div className="mt-5 overflow-x-auto rounded-xl border border-border/70">
             <table className="w-full min-w-[760px] text-sm">
               <thead className="bg-secondary/40 text-left"><tr><th className="px-4 py-3 font-medium">Měsíc</th><th className="px-4 py-3 font-medium">Cíl</th><th className="px-4 py-3 font-medium">Příležitosti</th><th className="px-4 py-3 font-medium">Close</th><th className="px-4 py-3 font-medium">Close rate</th><th className="px-4 py-3 font-medium">Plnění</th><th className="px-4 py-3 font-medium">Akce</th></tr></thead>
-              <tbody>{monthRows.map((month, index) => {
+              <tbody>{monthRows.map((month) => {
                 const rate = month.opportunities > 0 ? Math.round((month.actual_closes / month.opportunities) * 100) : 0;
                 const fill = month.target_closes > 0 ? Math.min(100, Math.round((month.actual_closes / month.target_closes) * 100)) : 0;
                 return <tr key={month.id} className="border-t border-border/70">
@@ -410,10 +401,10 @@ function Overview() {
 
         <section className="surface mt-6 p-6">
           <div className="flex items-center gap-2"><Sparkles className="size-5 text-primary" /><h2 className="font-display text-xl font-semibold">AI Helper — Argumentace hovoru</h2></div>
-          <p className="mt-1 text-sm text-muted-foreground">Napiš, kde hovor spadl a co klient řekl. Helper ti vrátí konkrétní reakci, důvod a další krok.</p>
+          <p className="mt-1 text-sm text-muted-foreground">Napiš, kde hovor spadl a co klient řekl. Helper vrátí konkrétní reakci, důvod a další krok.</p>
           <div className="mt-5 grid gap-5 lg:grid-cols-[1.1fr_0.9fr]">
             <div className="space-y-4">
-              <div><Label htmlFor="call-stage">Kde hovor spadl</Label><select id="call-stage" value={callStage} onChange={(e) => { setCallStage(e.target.value); }} className="mt-2 flex h-10 w-full rounded-md border border-input bg-transparent px-3 text-sm"><option value="discovery">Discovery</option><option value="qualification">Kvalifikace</option><option value="objection">Námitka</option><option value="offer">Nabídka</option><option value="closing">Closing</option></select></div>
+              <div><Label htmlFor="call-stage">Kde hovor spadl</Label><select id="call-stage" value={callStage} onChange={(e) => setCallStage(e.target.value)} className="mt-2 flex h-10 w-full rounded-md border border-input bg-transparent px-3 text-sm"><option value="discovery">Discovery</option><option value="qualification">Kvalifikace</option><option value="objection">Námitka</option><option value="offer">Nabídka</option><option value="closing">Closing</option></select></div>
               <div><Label htmlFor="objection">Argument / námitka klienta</Label><Textarea id="objection" value={objection} onChange={(e) => setObjection(e.target.value)} placeholder="Např. Je to moc drahé, musím si to promyslet…" className="mt-2 min-h-36" /></div>
               <div className="flex flex-wrap gap-2"><Button onClick={runAnalysis}><Sparkles className="size-4" /> Vyhodnotit</Button><Button variant="secondary" disabled={!objection.trim() || saveArgumentation.isPending} onClick={() => saveArgumentation.mutate()}><Save className="size-4" /> Uložit do historie</Button></div>
               {saveArgumentation.isError && <p className="text-sm text-destructive">Argumentaci se nepodařilo uložit.</p>}
