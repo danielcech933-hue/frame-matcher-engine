@@ -246,22 +246,12 @@ function NewsPage() {
   async function refreshNow() {
     setRefreshing(true);
     try {
-      const response = await fetch(`${NEWS_SUPABASE_URL}/functions/v1/refresh-news`, {
-        method: "POST",
-        headers: {
-          apikey: NEWS_SUPABASE_KEY,
-          Authorization: `Bearer ${NEWS_SUPABASE_KEY}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ trigger: "manual" }),
-      });
-      const data = await response.json().catch(() => ({}));
-      if (!response.ok || data?.error) throw new Error(data?.error || `Aktualizace selhala (${response.status})`);
+      // The scheduled worker is the source of truth. The button only refreshes the
+      // database view so an unavailable upstream provider can never crash the UI.
       await Promise.all([news.refetch(), archive.refetch(), state.refetch()]);
-      toast.success(`Aktualizováno: ${data?.count ?? 0} zpráv.`);
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Aktualizace se nepodařila.");
-      await Promise.all([news.refetch(), archive.refetch(), state.refetch()]);
+      toast.success("Feed obnoven. Automatická synchronizace běží každých 10 minut.");
+    } catch {
+      toast.info("Feed se nepodařilo právě teď obnovit. Poslední dostupné zprávy zůstávají zachované.");
     } finally {
       setRefreshing(false);
     }
@@ -282,7 +272,7 @@ function NewsPage() {
           </div>
           <Button variant="secondary" onClick={refreshNow} disabled={refreshing}>
             <RefreshCw className={refreshing ? "size-4 animate-spin" : "size-4"} />
-            {refreshing ? "Aktualizuji…" : "Aktualizovat"}
+            {refreshing ? "Obnovuji…" : "Obnovit feed"}
           </Button>
         </div>
 
@@ -354,7 +344,7 @@ function NewsPage() {
           <div className="surface mt-10 p-8 text-center">
             <AlertTriangle className="mx-auto size-7 text-primary" />
             <h2 className="mt-4 font-display text-xl font-semibold">Nepodařilo se načíst {view === "archive" ? "archiv" : "live feed"}</h2>
-            <p className="mt-2 text-sm text-muted-foreground">Zkontroluj připojení databáze a zkus aktualizaci znovu.</p>
+            <p className="mt-2 text-sm text-muted-foreground">Zkontroluj připojení databáze a zkus obnovit feed.</p>
             <Button className="mt-5" onClick={() => (view === "archive" ? archive.refetch() : news.refetch())}>Zkusit znovu</Button>
           </div>
         ) : items.length === 0 ? (
@@ -364,7 +354,7 @@ function NewsPage() {
               {search ? `Žádné výsledky pro „${search}"` : view === "archive" ? "Archiv zatím nemá záznam pro tento filtr" : "Žádné zprávy pro tento filtr"}
             </h2>
             <p className="mt-2 text-sm text-muted-foreground">
-              {search ? "Zkus jiný název společnosti, ticker nebo klíčové slovo." : view === "archive" ? "Jakmile se objeví další událost s vysokým dopadem, zůstane v archivu." : "Zkus Vše nebo spusť ruční aktualizaci."}
+              {search ? "Zkus jiný název společnosti, ticker nebo klíčové slovo." : view === "archive" ? "Jakmile se objeví další událost s vysokým dopadem, zůstane v archivu." : "Zkus Vše nebo spusť aktualizaci feedu."}
             </p>
           </div>
         ) : (
